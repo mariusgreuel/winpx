@@ -1,0 +1,6 @@
+[submodule "extras/TraceWpp"]
+	path = extras/TraceWpp
+	url = https://github.com/MGTEK/TraceWpp.git
+[submodule "extras/asio"]
+	path = extras/asio
+	url = https://github.com/chriskohlhoff/asio.git

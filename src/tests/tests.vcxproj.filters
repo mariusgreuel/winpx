@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="HttpMessageTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpRequestMessageTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpResponseMessageTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpToolsTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="ProxySystemTests.cpp">
+      <Filter>2 SystemTests</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolsTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="UnicodeTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="UriTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="CommandLineParserTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpHeadersTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+    <ClCompile Include="AuthenticationSchemesTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="1 UnitTests">
+      <UniqueIdentifier>{e2ec3d0b-99dc-42d4-bdde-e479bc378b32}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="2 SystemTests">
+      <UniqueIdentifier>{a59cf8db-b15d-4a8f-b304-3ec197cc5623}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

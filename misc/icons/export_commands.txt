@@ -1,0 +1,142 @@
+export-background:#ffffff;
+export-background-opacity:0.0; 
+
+select-by-id:server-gray;
+select-by-id:server-colorful;
+select-by-id:globe-black;
+select-by-id:globe-white;
+select-by-id:globe-colorful;
+select-by-id:overlay-cutaway;
+select-by-id:overlay-error;
+select-by-id:overlay-paused;
+select-by-id:overlay-running;
+select-by-id:background-black;
+select-by-id:background-white;
+object-set-property:display, none;
+select-clear;
+
+select-by-id:server-colorful; object-set-property:display, inline; select-clear;
+select-by-id:globe-colorful; object-set-property:display, inline; select-clear;
+export-filename:icon-winpx-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-winpx-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-winpx-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-winpx-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-winpx-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-winpx-64.png; export-width:64; export-height:64; export-do;
+export-filename:icon-winpx-128.png; export-width:128; export-height:128; export-do;
+export-filename:icon-winpx-256.png; export-width:256; export-height:256; export-do;
+
+export-filename:..\..\src\WinPX\Images\LockScreenLogo.scale-200.png; export-width:48; export-height:48; export-do;
+export-filename:..\..\src\WinPX\Images\Square44x44Logo.scale-200.png; export-width:88; export-height:88; export-do;
+export-filename:..\..\src\WinPX\Images\Square44x44Logo.targetsize-24_altform-unplated.png; export-width:24; export-height:24; export-do;
+export-filename:..\..\src\WinPX\Images\Square150x150Logo.scale-200.png; export-width:300; export-height:300; export-do;
+export-filename:..\..\src\WinPX\Images\StoreLogo.png; export-width:50; export-height:50; export-do;
+export-filename:..\..\src\WinPX\Images\SplashScreen.scale-200.png; export-width:1240; export-height:600; export-do;
+export-filename:..\..\src\WinPX\Images\Wide310x150Logo.scale-200.png; export-width:620; export-height:300; export-do;
+
+select-by-id:server-gray;
+select-by-id:server-colorful;
+select-by-id:globe-black;
+select-by-id:globe-white;
+select-by-id:globe-colorful;
+select-by-id:overlay-cutaway;
+select-by-id:overlay-error;
+select-by-id:overlay-paused;
+select-by-id:overlay-running;
+select-by-id:background-black;
+select-by-id:background-white;
+object-set-property:display, none;
+select-clear;
+
+select-by-id:server-gray; object-set-property:display, inline; select-clear;
+
+select-by-id:globe-black; object-set-property:display, inline; select-clear;
+export-filename:icon-light-normal-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-light-normal-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-light-normal-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-light-normal-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-light-normal-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-light-normal-64.png; export-width:64; export-height:64; export-do;
+
+select-by-id:overlay-cutaway; object-set-property:display, inline; select-clear;
+
+select-by-id:overlay-error; object-set-property:display, inline;
+export-filename:icon-light-error-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-light-error-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-light-error-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-light-error-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-light-error-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-light-error-64.png; export-width:64; export-height:64; export-do;
+object-set-property:display, none; select-clear;
+
+select-by-id:overlay-paused; object-set-property:display, inline;
+export-filename:icon-light-paused-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-light-paused-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-light-paused-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-light-paused-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-light-paused-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-light-paused-64.png; export-width:64; export-height:64; export-do;
+object-set-property:display, none; select-clear;
+
+select-by-id:overlay-running; object-set-property:display, inline;
+export-filename:icon-light-running-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-light-running-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-light-running-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-light-running-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-light-running-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-light-running-64.png; export-width:64; export-height:64; export-do;
+object-set-property:display, none; select-clear;
+
+select-by-id:server-gray;
+select-by-id:server-colorful;
+select-by-id:globe-black;
+select-by-id:globe-white;
+select-by-id:globe-colorful;
+select-by-id:overlay-cutaway;
+select-by-id:overlay-error;
+select-by-id:overlay-paused;
+select-by-id:overlay-running;
+select-by-id:background-black;
+select-by-id:background-white;
+object-set-property:display, none;
+select-clear;
+
+select-by-id:server-gray; object-set-property:display, inline; select-clear;
+
+select-by-id:globe-white; object-set-property:display, inline; select-clear;
+export-filename:icon-dark-normal-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-dark-normal-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-dark-normal-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-dark-normal-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-dark-normal-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-dark-normal-64.png; export-width:64; export-height:64; export-do;
+
+select-by-id:overlay-cutaway; object-set-property:display, inline; select-clear;
+
+select-by-id:overlay-error; object-set-property:display, inline;
+export-filename:icon-dark-error-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-dark-error-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-dark-error-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-dark-error-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-dark-error-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-dark-error-64.png; export-width:64; export-height:64; export-do;
+
+object-set-property:display, none; select-clear;
+
+select-by-id:overlay-paused; object-set-property:display, inline;
+export-filename:icon-dark-paused-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-dark-paused-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-dark-paused-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-dark-paused-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-dark-paused-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-dark-paused-64.png; export-width:64; export-height:64; export-do;
+object-set-property:display, none; select-clear;
+
+select-by-id:overlay-running; object-set-property:display, inline;
+export-filename:icon-dark-running-16.png; export-width:16; export-height:16; export-do;
+export-filename:icon-dark-running-20.png; export-width:20; export-height:20; export-do;
+export-filename:icon-dark-running-24.png; export-width:24; export-height:24; export-do;
+export-filename:icon-dark-running-32.png; export-width:32; export-height:32; export-do;
+export-filename:icon-dark-running-48.png; export-width:48; export-height:48; export-do;
+export-filename:icon-dark-running-64.png; export-width:64; export-height:64; export-do;
+object-set-property:display, none; select-clear;

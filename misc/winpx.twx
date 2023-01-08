@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TraceView>
+  <Project>
+    <Session Name="TraceView-WinPX" Guid="B7C3F527-6958-11F1-9B92-78AF08C65475" Mode="Realtime" Active="true">
+      <Providers>
+        <Provider Name="WinPX" Guid="E757C1B5-DCE1-59AA-A641-BFA03D14E3A6" Enabled="true"/>
+      </Providers>
+    </Session>
+    <Filters>
+      <Filter2>
+        <Rules>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppObject" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppTrace" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppVerbose" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppGui" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppHttp" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppProxy" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppService" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppWarning" Action="Keep"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppError" Action="Keep"/>
+        </Rules>
+      </Filter2>
+      <Filter3>
+        <Rules>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppGui" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppObject" Action="Exclude"/>
+          <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppVerbose" Action="Exclude"/>
+        </Rules>
+      </Filter3>
+    </Filters>
+    <Colors>
+      <Color Name="Highlight" Foreground="#000000" Background="#FFCCCC">
+        <Filter>
+          <Rules>
+            <Rule Enabled="true" Column="Message" Relation="Is" Value="winpx::ProxyRequestHandler::Handle$_ResumeCoro$1" Action="Include"/>
+          </Rules>
+        </Filter>
+      </Color>
+      <Color Name="WppWarning" Foreground="#000000" Background="#FFD5AA">
+        <Filter>
+          <Rules>
+            <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppWarning" Action="Include"/>
+          </Rules>
+        </Filter>
+      </Color>
+      <Color Foreground="#000000" Background="#FFAAAA">
+        <Filter>
+          <Rules>
+            <Rule Enabled="true" Column="LevelName" Relation="Is" Value="WppError" Action="Include"/>
+          </Rules>
+        </Filter>
+      </Color>
+    </Colors>
+  </Project>
+</TraceView>

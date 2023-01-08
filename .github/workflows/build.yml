@@ -1,0 +1,43 @@
+#
+# build.yml - GitHub build action for WinPX
+# Copyright (c) 2021 Marius Greuel
+#
+
+name: Build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - { runner: windows-2025-vs2026, configuration: Release, platform: x64, output: x64/Release }
+          - { runner: windows-11-vs2026-arm, configuration: Release, platform: ARM64, output: ARM64/Release }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+      - name: Setup msbuild
+        uses: microsoft/setup-msbuild@v3
+      - name: Build
+        working-directory: src
+        run: |
+          msbuild -t:restore -p:RestorePackagesConfig=true
+          msbuild -t:build -p:configuration=${{ matrix.configuration }} -p:platform=${{ matrix.platform }} -p:GitCommitHash=${{ github.sha }}
+      - name: Run tests
+        working-directory: src
+        run: |
+          .\${{ matrix.output }}\winpx-tests.exe
+      - name: Archive build artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: WinPX-${{ matrix.platform }}
+          path: |
+            src/${{ matrix.output }}/winpx.*
+            src/${{ matrix.output }}/winpxc.*

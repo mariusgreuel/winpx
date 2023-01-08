@@ -1,0 +1,140 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="1 Win32">
+      <UniqueIdentifier>{c3f074b8-fe05-4c53-854e-294d8951bb44}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Base64.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Cryptography.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="GroupPolicy.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Guid.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Registry.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Unicode.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Win32.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Clipboard.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsoleColor.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Environment.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="MitigationPolicy.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="ResourceFile.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="RunAsAdmin.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Service.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="ServiceInstaller.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="SingleInstance.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="SystemInformation.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="UrlLauncher.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsFirewall.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="WppTracing.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Base64.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Win32Error.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Cryptography.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="GroupPolicy.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Guid.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Registry.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Unicode.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Win32.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Clipboard.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsoleColor.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Environment.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="MitigationPolicy.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="ResourceFile.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="RunAsAdmin.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Service.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="ServiceInstaller.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="SingleInstance.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="SystemInformation.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="UrlLauncher.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsFirewall.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="WppTracing.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="LocalWpp.ini" />
+  </ItemGroup>
+</Project>

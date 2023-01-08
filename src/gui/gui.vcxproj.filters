@@ -1,0 +1,141 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="1 Main">
+      <UniqueIdentifier>{ec5c922a-41fc-49b9-be7d-86e3d3cbfcf2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="2 Gui">
+      <UniqueIdentifier>{5e4e2e00-5840-42bd-b9f4-6fc369e5d744}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3 Resources">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DialogOptions.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="DialogOptionsAbout.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="DialogOptionsDiagnostics.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="DialogOptionsGateway.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="DialogOptionsGeneral.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="DialogOptionsSecurity.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="DialogOptionsStatus.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="DialogWelcome.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="MainWindow.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
+    <ClCompile Include="OnlineHelp.cpp">
+      <Filter>1 Main</Filter>
+    </ClCompile>
+    <ClCompile Include="WinMain.cpp">
+      <Filter>1 Main</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="Firewall.cpp">
+      <Filter>1 Main</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DialogOptions.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="DialogOptionsAbout.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="DialogOptionsDiagnostics.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="DialogOptionsGateway.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="DialogOptionsGeneral.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="DialogOptionsSecurity.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="DialogOptionsStatus.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="DialogWelcome.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="MainWindow.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="NotifyIcon.h">
+      <Filter>2 Gui</Filter>
+    </ClInclude>
+    <ClInclude Include="OnlineHelp.h">
+      <Filter>1 Main</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>3 Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="Firewall.h">
+      <Filter>1 Main</Filter>
+    </ClInclude>
+    <ClInclude Include="Options.h">
+      <Filter>1 Main</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\common\res\winpx.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+    <Image Include="res\winpx-dark-error.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+    <Image Include="res\winpx-dark-normal.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+    <Image Include="res\winpx-dark-paused.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+    <Image Include="res\winpx-dark-running.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+    <Image Include="res\winpx-light-error.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+    <Image Include="res\winpx-light-normal.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+    <Image Include="res\winpx-light-paused.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+    <Image Include="res\winpx-light-running.ico">
+      <Filter>3 Resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\common\res\licenses.txt">
+      <Filter>3 Resources</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource.rc">
+      <Filter>3 Resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+</Project>

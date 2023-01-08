@@ -1,0 +1,197 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="1 Proxy">
+      <UniqueIdentifier>{9530a36e-8d20-4782-ae89-59a11e69049e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="2 Http">
+      <UniqueIdentifier>{405c4363-b30a-4103-8a92-0e023dfb3b0c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="3 Misc">
+      <UniqueIdentifier>{9e872525-4046-4dba-9af7-8093fed46d9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="4 Resources">
+      <UniqueIdentifier>{e440613b-75f4-46fe-8df1-358ae7c586f5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="HttpMessage.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpProbe.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpRequestMessage.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpResponseMessage.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpTools.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="Proxy.cpp">
+      <Filter>1 Proxy</Filter>
+    </ClCompile>
+    <ClCompile Include="ProxyAuthenticationSession.cpp">
+      <Filter>1 Proxy</Filter>
+    </ClCompile>
+    <ClCompile Include="ProxyConfiguration.cpp">
+      <Filter>1 Proxy</Filter>
+    </ClCompile>
+    <ClCompile Include="ProxyRequestHandler.cpp">
+      <Filter>1 Proxy</Filter>
+    </ClCompile>
+    <ClCompile Include="ProxyResolver.cpp">
+      <Filter>1 Proxy</Filter>
+    </ClCompile>
+    <ClCompile Include="WebServer.cpp">
+      <Filter>1 Proxy</Filter>
+    </ClCompile>
+    <ClCompile Include="Uri.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="CommandLineParser.cpp">
+      <Filter>3 Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="ProxyCommandLineParser.cpp">
+      <Filter>1 Proxy</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpStatusCode.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpHeaders.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpHeader.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="Resources.cpp">
+      <Filter>3 Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpWebRequest.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="Wsl.cpp">
+      <Filter>3 Misc</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AuthenticationSchemes.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkMode.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="Proxy.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyAuthenticationSession.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyConfiguration.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyMode.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyRequestHandler.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyResolver.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyState.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyStatistics.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyStatus.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="Version.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="WebServer.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpError.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpHeader.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpMessage.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpProbe.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpRequestMessage.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpResponseMessage.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpStatusCode.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpTools.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="Uri.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="resource.h">
+      <Filter>4 Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="SystemProxyConfiguration.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="Tools.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="CommandLineParser.h">
+      <Filter>3 Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="ProxyCommandLineParser.h">
+      <Filter>1 Proxy</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpHeaders.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources.h">
+      <Filter>3 Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpWebRequest.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="Wsl.h">
+      <Filter>3 Misc</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="LocalWpp.ini" />
+    <None Include="resource.rc">
+      <Filter>4 Resources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="res\licenses.txt">
+      <Filter>4 Resources</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="res\manifest.xml">
+      <Filter>4 Resources</Filter>
+    </Xml>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\winpx.ico">
+      <Filter>4 Resources</Filter>
+    </Image>
+  </ItemGroup>
+</Project>

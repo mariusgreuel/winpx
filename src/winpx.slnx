@@ -1,0 +1,19 @@
+<Solution>
+  <Configurations>
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Docs/">
+    <File Path="../LICENSE" />
+    <File Path="../README.md" />
+  </Folder>
+  <Folder Name="/Workflows/">
+    <File Path="../.github/workflows/build.yml" />
+  </Folder>
+  <Project Path="common/common.vcxproj" Id="736f91cd-c68a-4d40-9b07-2e94bf4e5e3d" />
+  <Project Path="console/console.vcxproj" Id="ccca3217-ba46-4ada-b59b-0aca9b92d5b2" />
+  <Project Path="gui/gui.vcxproj" Id="bdb95e8b-5655-41eb-91a5-d2b5f5eaa6f9" />
+  <Project Path="tests/tests.vcxproj" Id="ff40ac35-12c8-49da-bfaf-2fd5a9ba46da" />
+  <Project Path="win32/win32.vcxproj" Id="400dc26f-bdb7-4d9c-90e4-bbc7259e96dd" />
+</Solution>

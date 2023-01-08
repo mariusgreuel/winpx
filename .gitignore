@@ -1,0 +1,11 @@
+.vs/
+.vscode/
+packages/
+out/
+build/
+x64/
+Debug/
+Release/
+TestResults/
+*.aps
+*.vcxproj.user
