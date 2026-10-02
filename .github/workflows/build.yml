@@ -28,7 +28,7 @@ jobs:
         working-directory: src
         run: |
           msbuild -t:restore -p:RestorePackagesConfig=true
-          msbuild -t:build -p:configuration=${{ matrix.configuration }} -p:platform=${{ matrix.platform }} -p:GitCommitHash=${{ github.sha }}
+          msbuild -t:build -p:configuration=${{ matrix.configuration }} -p:platform=${{ matrix.platform }} -p:GitCommitHash=${{ github.sha }} -p:UapAppxPackageBuildMode=StoreUpload
       - name: Run tests
         working-directory: src
         run: |
@@ -41,3 +41,4 @@ jobs:
           path: |
             src/${{ matrix.output }}/winpx.*
             src/${{ matrix.output }}/winpxc.*
+            src/installer/AppPackages/*.msixupload
