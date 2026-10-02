@@ -34,7 +34,7 @@
       uap18:TrustLevel="mediumIL"
       uap18:RuntimeBehavior="win32App">
       <uap:VisualElements
-        DisplayName="WinPX"
+        DisplayName="WinPX Proxy Server"
         Description="WinPX is a forwarding HTTP proxy server for Windows designed to help legacy applications connect to enterprise proxy servers."
         BackgroundColor="transparent"
         Square150x150Logo="Images\Square150x150Logo.png"
