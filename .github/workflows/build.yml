@@ -15,6 +15,7 @@ jobs:
     strategy:
       matrix:
         include:
+          - { runner: windows-2025-vs2026, configuration: Release, platform: x86, output: Release }
           - { runner: windows-2025-vs2026, configuration: Release, platform: x64, output: x64/Release }
           - { runner: windows-11-vs2026-arm, configuration: Release, platform: ARM64, output: ARM64/Release }
     steps:
