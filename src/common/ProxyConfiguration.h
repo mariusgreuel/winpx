@@ -50,7 +50,7 @@ namespace winpx
 
         std::chrono::milliseconds resolveTimeout = std::chrono::milliseconds(5000);
         std::chrono::milliseconds connectTimeout = std::chrono::milliseconds(5000);
-        std::chrono::milliseconds readTimeout = std::chrono::milliseconds(30000);
+        std::chrono::milliseconds readTimeout = std::chrono::milliseconds(120000);
         std::chrono::milliseconds writeTimeout = std::chrono::milliseconds(15000);
 
     private:
