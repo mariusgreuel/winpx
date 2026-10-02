@@ -10,7 +10,7 @@
   <Identity
     Name="mgtek.com.WinPX"
     Publisher="CN=14EB2942-3EE1-44D2-92E0-0754A0223CC9"
-    Version="1.0.34.0" />
+    Version="1.0.36.0" />
 
   <Properties>
     <DisplayName>WinPX</DisplayName>
