@@ -1,8 +1,6 @@
 # WinPX Proxy Server for Windows
 
-**WinPX** is a forwarding HTTP proxy server for Windows.
-
-It is designed to help legacy applications connect to enterprise proxy servers.
+**WinPX** is a forwarding HTTP proxy server for Windows designed to help legacy applications connect to enterprise proxy servers.
 
 By running locally on your PC, **WinPX** abstracts away complex proxy requirements like PAC files and Kerberos/NTLM authentication,
 presenting a simple HTTP proxy interface to your applications.
@@ -51,11 +49,37 @@ flowchart LR
 
 ## Installing WinPX
 
-**WinPX** requires **Windows 10** or later, and is distributed as a **standalone executable** that requires no installation.
+### Install WinPX via Microsoft Store
 
-To download the latest version of **WinPX**, please visit the [WinPX GitHub Releases page](https://github.com/mariusgreuel/winpx/releases).
+To install **WinPX**, visit the [Microsoft Store](https://apps.microsoft.com/detail/9PK1PT0SKM0Q).
 
-Two variants are available:
+### Install WinPX via winget
+
+To install **WinPX**, run the following command in a Windows Command Prompt or PowerShell:
+
+```powershell
+winget install --source msstore --id 9PK1PT0SKM0Q --accept-package-agreements
+```
+
+### Download WinPX installer package for offline installation
+
+There are **WinPX** installer packages for three architectures available:
+
+- [`WinPX_1.0.36.0_x64.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_x64.msix): Windows x64 (recommended for most users)
+- [`WinPX_1.0.36.0_arm64.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_arm64.msix): Windows ARM64
+- [`WinPX_1.0.36.0_x86.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_x86.msix): Windows x86
+
+### Download and install WinPX executables manually
+
+**WinPX** is also distributed as a **standalone executable** that requires no installation.
+
+There are **WinPX** executables for three architectures available:
+
+- [`WinPX_1.0.36.0_x64.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_x64.zip): Windows x64 (recommended for most users)
+- [`WinPX_1.0.36.0_arm64.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_arm64.zip): Windows ARM64
+- [`WinPX_1.0.36.0_x86.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_x86.zip): Windows x86
+
+Inside each zip file, two variants are available:
 
 - `winpx.exe`: the **Windows GUI version**, which is recommended for most users.
 - `winpxc.exe`: the **command-line version**, which is intended for servers and can be run as a Windows service.
@@ -74,7 +98,7 @@ In **NAT** mode, `127.0.0.1` refers to the Linux distribution itself, so the ste
 To use WinPX with WSL, follow these steps:
 
 - Ensure that you have an up-to-date version of WSL installed by running the command `wsl.exe --update` in an elevated Windows Command Prompt.
-- Open the **WSL Settings** dialog from the Windows Start menu and set the networking mode to **Mirrored**.
+- Open the **WSL Settings** dialog from the Windows Start menu and set the **Networking mode** to **Mirrored**.
 
 You can now set up a Linux distribution in WSL and access the **WinPX** proxy server URL from within Linux.
 
