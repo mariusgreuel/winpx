@@ -65,9 +65,9 @@ winget install --source msstore --id 9PK1PT0SKM0Q --accept-package-agreements
 
 There are **WinPX** installer packages for three architectures available:
 
-- [`WinPX_1.0.36.0_x64.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_x64.msix): Windows x64 (recommended for most users)
-- [`WinPX_1.0.36.0_arm64.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_arm64.msix): Windows ARM64
-- [`WinPX_1.0.36.0_x86.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_x86.msix): Windows x86
+- [`WinPX_1.0.38.0_x64.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.38/WinPX_1.0.38.0_x64.msix): 64-bit (recommended for most users)
+- [`WinPX_1.0.38.0_x86.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.38/WinPX_1.0.38.0_x86.msix): 32-bit
+- [`WinPX_1.0.38.0_arm64.msix`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.38/WinPX_1.0.38.0_arm64.msix): ARM64
 
 ### Download and install WinPX executables manually
 
@@ -75,9 +75,9 @@ There are **WinPX** installer packages for three architectures available:
 
 There are **WinPX** executables for three architectures available:
 
-- [`WinPX_1.0.36.0_x64.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_x64.zip): Windows x64 (recommended for most users)
-- [`WinPX_1.0.36.0_arm64.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_arm64.zip): Windows ARM64
-- [`WinPX_1.0.36.0_x86.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.36/WinPX_1.0.36.0_x86.zip): Windows x86
+- [`WinPX_1.0.38.0_x64.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.38/WinPX_1.0.38.0_x64.zip): 64-bit (recommended for most users)
+- [`WinPX_1.0.38.0_x86.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.38/WinPX_1.0.38.0_x86.zip): 32-bit
+- [`WinPX_1.0.38.0_arm64.zip`](https://github.com/mariusgreuel/winpx/releases/download/v1.0.38/WinPX_1.0.38.0_arm64.zip): ARM64
 
 Inside each zip file, two variants are available:
 
