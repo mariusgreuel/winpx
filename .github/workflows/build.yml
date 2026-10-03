@@ -15,9 +15,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - { runner: windows-2025-vs2026, configuration: Release, platform: x86, output: Release }
-          - { runner: windows-2025-vs2026, configuration: Release, platform: x64, output: x64/Release }
-          - { runner: windows-11-vs2026-arm, configuration: Release, platform: ARM64, output: ARM64/Release }
+          - { name: x86, runner: windows-2025-vs2026, configuration: Release, platform: x86, output: Release }
+          - { name: x64, runner: windows-2025-vs2026, configuration: Release, platform: x64, output: x64/Release }
+          - { name: arm64, runner: windows-11-vs2026-arm, configuration: Release, platform: ARM64, output: ARM64/Release }
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -38,8 +38,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: WinPX-${{ matrix.platform }}
+          name: WinPX_${{ matrix.name }}
           path: |
             src/${{ matrix.output }}/winpx.*
             src/${{ matrix.output }}/winpxc.*
-            src/installer/AppPackages/*.msixupload
+      - name: Archive package artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: WinPX-package_${{ matrix.name }}
+          path: src/installer/AppPackages/*.msixupload
