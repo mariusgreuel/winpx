@@ -13,6 +13,7 @@
 #include <win32/WppTracing.h>
 
 #include <crtdbg.h>
+#include <winrt/Windows.Foundation.h>
 
 using namespace std::literals::string_view_literals;
 using namespace win32;
@@ -25,6 +26,8 @@ namespace winpx
     public:
         int Run()
         {
+            winrt::init_apartment();
+
             Registry::SetRootKey("Software\\Marius Greuel\\WinPX"sv);
             GroupPolicy::SetRootKey("Software\\Policies\\Marius Greuel\\WinPX"sv);
 

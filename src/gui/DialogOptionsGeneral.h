@@ -44,6 +44,8 @@ namespace winpx
     private:
         ProxyConfiguration& m_proxyConfiguration;
         CButton m_btnAutoStartApp;
+        CButton m_btnAutoStartDisabled;
+        CToolTipCtrl m_ttAutoStartDisabled;
         CButton m_btnAutoStartProxy;
         CButton m_btnSetEnvironmentVariables;
         CComboBox m_cbNetworkMode;

@@ -51,10 +51,11 @@ namespace win32
 
     void SystemInformation::PrintProcessInfo()
     {
-        DoTraceMessage(WppVerbose, "ProcessInfo: Path='%!wstr!', IntegrityLevel=%s, AppContainer=%s",
+        DoTraceMessage(WppVerbose, "ProcessInfo: Path='%!wstr!', Packaged=%s, AppContainer=%s, IntegrityLevel=%s",
             Environment::GetProcessPath().native(),
-            MapProcessIntegrityLevel(Environment::GetProcessIntegrityLevel()),
-            Environment::IsProcessAppContainer() ? "Yes" : "No");
+            Environment::IsPackagedProcess() ? "Yes" : "No",
+            Environment::IsAppContainerProcess() ? "Yes" : "No",
+            MapProcessIntegrityLevel(Environment::GetProcessIntegrityLevel()));
     }
 
     void SystemInformation::PrintUsername()

@@ -15,6 +15,7 @@
 #include <win32/GroupPolicy.h>
 #include <win32/Guid.h>
 #include <win32/Registry.h>
+#include <win32/StartupTask.h>
 #include <win32/Unicode.h>
 #include <win32/Win32Error.h>
 
@@ -175,6 +176,18 @@ namespace winpx
         }
     }
 
+    bool ProxyConfiguration::GetAutoStartApp() const
+    {
+        if (Environment::IsPackagedProcess())
+        {
+            return StartupTask::IsEnabled("WinPX");
+        }
+        else
+        {
+            return Registry::GetValue("AutoStartApp"sv, false);
+        }
+    }
+
     std::string ProxyConfiguration::GetWinPxProxyUrl() const
     {
         return MakeProxyUrl("127.0.0.1"sv);
@@ -218,13 +231,20 @@ namespace winpx
         return secret;
     }
 
-    void ProxyConfiguration::ConfigureAutoStart(bool enabled)
+    void ProxyConfiguration::ConfigureAutoStart(bool enable)
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
 
-        Environment::SetAutoStartApp(
-            "WinPX"sv,
-            std::format("\"{}\"", Unicode::ToUtf8(Environment::GetProcessPath().native())),
-            enabled);
+        if (Environment::IsPackagedProcess())
+        {
+            StartupTask::Enable("WinPX", enable);
+        }
+        else
+        {
+            Environment::SetAutoStartApp(
+                "WinPX"sv,
+                std::format("\"{}\"", Unicode::ToUtf8(Environment::GetProcessPath().native())),
+                enable);
+        }
     }
 }

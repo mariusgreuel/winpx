@@ -73,7 +73,14 @@ namespace win32
         return bIsAdmin != FALSE;
     }
 
-    bool Environment::IsProcessAppContainer()
+    bool Environment::IsPackagedProcess()
+    {
+        UINT32 length = 0;
+        auto result = GetCurrentPackageFullName(&length, nullptr);
+        return result == ERROR_INSUFFICIENT_BUFFER;
+    }
+
+    bool Environment::IsAppContainerProcess()
     {
         DWORD dwIsAppContainer = 0;
 
@@ -123,9 +130,9 @@ namespace win32
         return dwIntegrityLevel;
     }
 
-    HRESULT Environment::SetAutoStartApp(std::string_view keyName, std::string_view value, bool enabled)
+    HRESULT Environment::SetAutoStartApp(std::string_view keyName, std::string_view value, bool enable)
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!: keyName='%!sv!', value='%!sv!'", keyName, value);
+        DoTraceMessage(WppVerbose, "%!FUNC!: keyName='%!sv!', value='%!sv!', enable=%d", keyName, value, enable);
 
         CRegKey key;
         LSTATUS nError = key.Open(HKEY_CURRENT_USER, _T("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), KEY_READ | KEY_WRITE);
@@ -135,7 +142,7 @@ namespace win32
             return AtlHresultFromWin32(nError);
         }
 
-        if (enabled)
+        if (enable)
         {
             nError = key.SetStringValue(Unicode::FromUtf8(keyName).c_str(), Unicode::FromUtf8(value).c_str());
             if (nError != ERROR_SUCCESS)

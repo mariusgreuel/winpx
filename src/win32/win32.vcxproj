@@ -221,6 +221,7 @@
     <ClCompile Include="Service.cpp" />
     <ClCompile Include="ServiceInstaller.cpp" />
     <ClCompile Include="SingleInstance.cpp" />
+    <ClCompile Include="StartupTask.cpp" />
     <ClCompile Include="SystemInformation.cpp" />
     <ClCompile Include="Unicode.cpp" />
     <ClCompile Include="UrlLauncher.cpp" />
@@ -244,6 +245,7 @@
     <ClInclude Include="Service.h" />
     <ClInclude Include="ServiceInstaller.h" />
     <ClInclude Include="SingleInstance.h" />
+    <ClInclude Include="StartupTask.h" />
     <ClInclude Include="SystemInformation.h" />
     <ClInclude Include="Unicode.h" />
     <ClInclude Include="UrlLauncher.h" />

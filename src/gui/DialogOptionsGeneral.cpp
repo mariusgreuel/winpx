@@ -12,7 +12,9 @@
 #include "OnlineHelp.h"
 #include <common/Wsl.h>
 #include <win32/Clipboard.h>
+#include <win32/Environment.h>
 #include <win32/GroupPolicy.h>
+#include <win32/StartupTask.h>
 #include <win32/Unicode.h>
 
 namespace winpx
@@ -39,6 +41,7 @@ namespace winpx
         DoTraceMessage(WppGui, "%!FUNC!");
 
         m_btnAutoStartApp.Attach(GetDlgItem(IDC_GENERAL_AUTO_START_APP));
+        m_btnAutoStartDisabled.Attach(GetDlgItem(IDC_GENERAL_AUTO_START_DISABLED));
         m_btnAutoStartProxy.Attach(GetDlgItem(IDC_GENERAL_AUTO_START_PROXY));
         m_btnSetEnvironmentVariables.Attach(GetDlgItem(IDC_GENERAL_SET_ENVIRONMENT));
         m_cbNetworkMode.Attach(GetDlgItem(IDC_GENERAL_NETWORK_MODE));
@@ -46,6 +49,17 @@ namespace winpx
         m_ecProxyPort.Attach(GetDlgItem(IDC_GENERAL_PROXY_PORT));
         m_ecWinPxProxyUrl.Attach(GetDlgItem(IDC_GENERAL_WINPX_PROXY_URL));
         m_stGroupPolicy.Attach(GetDlgItem(IDC_GROUP_POLICY));
+
+        CRect rcClient;
+        GetClientRect(&rcClient);
+
+        m_ttAutoStartDisabled.Create(m_hWnd, NULL, NULL, WS_POPUP | TTS_BALLOON | TTS_NOPREFIX);
+        m_ttAutoStartDisabled.Activate(TRUE);
+        m_ttAutoStartDisabled.SetMaxTipWidth(rcClient.Width());
+
+        CString strTooltip = _T("The startup task for WinPX has been disabled by the user and cannot be enabled here. Use the Windows Settings App or Task Manager to configure the startup behavior of WinPX.");
+        CToolInfo ti(TTF_SUBCLASS, m_btnAutoStartDisabled, 0, NULL, strTooltip.GetBuffer());
+        m_ttAutoStartDisabled.AddTool(&ti);
 
         m_btnAddFirewallRule.SendMessage(BCM_SETSHIELD, 0, TRUE);
 
@@ -121,7 +135,16 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        if (GroupPolicy::GetValue("AutoStartApp", false))
+        if (Environment::IsPackagedProcess())
+        {
+            if (StartupTask::IsDisabledByUser("WinPX"))
+            {
+                m_btnAutoStartApp.EnableWindow(FALSE);
+                m_btnAutoStartDisabled.ShowWindow(SW_SHOW);
+                m_btnAutoStartApp.SetCheck(BST_UNCHECKED);
+            }
+        }
+        else if (GroupPolicy::GetValue("AutoStartApp", false))
         {
             m_btnAutoStartApp.EnableWindow(FALSE);
             m_btnAutoStartApp.SetCheck(BST_UNCHECKED);
@@ -158,7 +181,7 @@ namespace winpx
 
     void DialogOptionsGeneral::LoadSettings()
     {
-        m_btnAutoStartApp.SetCheck(m_proxyConfiguration.autoStartApp ? BST_CHECKED : BST_UNCHECKED);
+        m_btnAutoStartApp.SetCheck(m_proxyConfiguration.GetAutoStartApp() ? BST_CHECKED : BST_UNCHECKED);
         m_btnAutoStartProxy.SetCheck(m_proxyConfiguration.autoStartProxy ? BST_CHECKED : BST_UNCHECKED);
         m_btnSetEnvironmentVariables.SetCheck(m_proxyConfiguration.setEnvironmentVariables ? BST_CHECKED : BST_UNCHECKED);
         m_cbNetworkMode.SetCurSel(static_cast<int>(m_proxyConfiguration.networkMode));

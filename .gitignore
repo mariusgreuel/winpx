@@ -9,3 +9,4 @@ Release/
 TestResults/
 *.aps
 *.vcxproj.user
+*.wapproj.user

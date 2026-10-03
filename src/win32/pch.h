@@ -12,14 +12,17 @@
 #define SECURITY_WIN32
 
 #include <Windows.h>
+
 #include <WinSock2.h>
 
+#include <appmodel.h>
 #include <iphlpapi.h>
 #include <netfw.h>
 #include <shellapi.h>
-#include <ShlObj.h>
+#include <shlobj.h>
 #include <wincrypt.h>
 
+#pragma comment(lib, "WindowsApp.lib")
 #pragma comment(lib, "crypt32.lib")
 #pragma comment(lib, "rpcrt4.lib")
 

@@ -16,6 +16,8 @@ namespace winpx
         void LoadFromRegistry();
         void SaveToRegistry() const;
 
+        bool GetAutoStartApp() const;
+
         std::string GetWinPxProxyUrl() const;
         std::string GetWslProxyUrl() const;
 
@@ -55,6 +57,6 @@ namespace winpx
 
     private:
         std::string MakeProxyUrl(std::string_view ipAddress) const;
-        static void ConfigureAutoStart(bool enabled);
+        static void ConfigureAutoStart(bool enable);
     };
 }

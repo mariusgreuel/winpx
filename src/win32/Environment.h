@@ -19,10 +19,11 @@ namespace win32
         static bool IsDarkMode();
         static bool IsRemoteDesktopSession();
         static bool IsLocalAdministrator();
-        static bool IsProcessAppContainer();
+        static bool IsPackagedProcess();
+        static bool IsAppContainerProcess();
         static DWORD GetProcessIntegrityLevel();
 
-        static HRESULT SetAutoStartApp(std::string_view keyName, std::string_view value, bool enabled);
+        static HRESULT SetAutoStartApp(std::string_view keyName, std::string_view value, bool enable);
 
         static HRESULT SetUserVariable(std::string_view name, std::string_view value);
         static HRESULT RemoveUserVariable(std::string_view name);

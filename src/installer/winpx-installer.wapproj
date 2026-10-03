@@ -116,7 +116,6 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\console\console.vcxproj" />
     <ProjectReference Include="..\gui\gui.vcxproj" />
   </ItemGroup>
 </Project>
