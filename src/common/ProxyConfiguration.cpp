@@ -184,7 +184,7 @@ namespace winpx
         }
         else
         {
-            return Registry::GetValue("AutoStartApp"sv, false);
+            return autoStartApp;
         }
     }
 
