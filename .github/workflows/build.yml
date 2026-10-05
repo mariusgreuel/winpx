@@ -43,8 +43,7 @@ jobs:
             src/${{ matrix.output }}/winpx.*
             src/${{ matrix.output }}/winpxc.*
       - name: Archive package artifacts
-        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: WinPX-package_${{ matrix.name }}
+          archive: false
           path: src/installer/AppPackages/*.msixupload
