@@ -111,9 +111,6 @@
     <ClInclude Include="ProxyStatus.h">
       <Filter>1 Proxy</Filter>
     </ClInclude>
-    <ClInclude Include="Version.h">
-      <Filter>1 Proxy</Filter>
-    </ClInclude>
     <ClInclude Include="WebServer.h">
       <Filter>1 Proxy</Filter>
     </ClInclude>
@@ -172,6 +169,7 @@
     <ClInclude Include="Wsl.h">
       <Filter>3 Misc</Filter>
     </ClInclude>
+    <ClInclude Include="Version.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="LocalWpp.ini" />
