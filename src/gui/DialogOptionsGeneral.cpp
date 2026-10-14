@@ -144,29 +144,57 @@ namespace winpx
                 m_btnAutoStartApp.SetCheck(BST_UNCHECKED);
             }
         }
-        else if (GroupPolicy::GetValue("AutoStartApp", false))
+        else
         {
-            m_btnAutoStartApp.EnableWindow(FALSE);
-            m_btnAutoStartApp.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            bool autoStartApp = false;
+            if (GroupPolicy::TryGetValue("AutoStartApp", autoStartApp))
+            {
+                m_btnAutoStartApp.EnableWindow(FALSE);
+                m_btnAutoStartApp.SetCheck(autoStartApp ? BST_CHECKED : BST_UNCHECKED);
+                ShowGroupPolicyNote();
+            }
         }
 
-        if (GroupPolicy::GetValue("AutoStartProxy", false))
+        bool autoStartProxy = false;
+        if (GroupPolicy::TryGetValue("AutoStartProxy", autoStartProxy))
         {
             m_btnAutoStartProxy.EnableWindow(FALSE);
-            m_btnAutoStartProxy.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            m_btnAutoStartProxy.SetCheck(autoStartProxy ? BST_CHECKED : BST_UNCHECKED);
+            ShowGroupPolicyNote();
         }
 
-        int port = GroupPolicy::GetValue("ProxyPort", -1);
-        if (port >= 0)
+        bool setEnvironmentVariables = false;
+        if (GroupPolicy::TryGetValue("SetEnvironmentVariables", setEnvironmentVariables))
+        {
+            m_btnSetEnvironmentVariables.EnableWindow(FALSE);
+            m_btnSetEnvironmentVariables.SetCheck(setEnvironmentVariables ? BST_CHECKED : BST_UNCHECKED);
+            ShowGroupPolicyNote();
+        }
+
+        NetworkMode networkMode = NetworkMode::Loopback;
+        if (GroupPolicy::TryGetValue("NetworkMode", networkMode))
+        {
+            m_cbNetworkMode.EnableWindow(FALSE);
+            m_cbNetworkMode.SetCurSel(static_cast<int>(networkMode));
+            ShowGroupPolicyNote();
+        }
+
+        int port = 3128;
+        if (GroupPolicy::TryGetValue("Port", port))
         {
             CString strPort;
             strPort.Format(L"%d", port);
             m_ecProxyPort.EnableWindow(FALSE);
             m_ecProxyPort.SetWindowText(strPort);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            ShowGroupPolicyNote();
         }
+    }
+
+    void DialogOptionsGeneral::ShowGroupPolicyNote()
+    {
+        DoTraceMessage(WppGui, "%!FUNC!");
+
+        m_stGroupPolicy.ShowWindow(SW_SHOW);
     }
 
     void DialogOptionsGeneral::UpdateControls()

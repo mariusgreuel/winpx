@@ -87,6 +87,7 @@ namespace winpx
                 {
                     m_proxyConfiguration = copy;
                     m_proxyConfiguration.SaveToRegistry();
+                    m_proxyConfiguration.LoadFromRegistry();
                 }
                 else
                 {
@@ -98,6 +99,7 @@ namespace winpx
             else
             {
                 m_proxyConfiguration.SaveToRegistry();
+                m_proxyConfiguration.LoadFromRegistry();
             }
         }
 
@@ -349,6 +351,7 @@ namespace winpx
 
             m_proxyConfiguration = copy;
             m_proxyConfiguration.SaveToRegistry();
+            m_proxyConfiguration.LoadFromRegistry();
 
             if (isRunning)
             {

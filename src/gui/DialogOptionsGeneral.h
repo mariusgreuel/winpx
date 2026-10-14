@@ -37,6 +37,7 @@ namespace winpx
 
     private:
         void UpdateGroupPolicy();
+        void ShowGroupPolicyNote();
         void UpdateControls();
         void LoadSettings();
         void SaveSettings();

@@ -85,6 +85,22 @@ namespace winpx
         }
     }
 
+    static void ApplyGroupPolicyToAllowedAuthenticationSchemes(AuthenticationSchemes& allowedAuthenticationSchemes, std::string_view schemeName, AuthenticationScheme scheme)
+    {
+        bool allowScheme = false;
+        if (GroupPolicy::TryGetValue(schemeName, allowScheme))
+        {
+            if (allowScheme)
+            {
+                allowedAuthenticationSchemes.Add(scheme);
+            }
+            else
+            {
+                allowedAuthenticationSchemes.Remove(scheme);
+            }
+        }
+    }
+
     void ProxyConfiguration::LoadFromRegistry()
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
@@ -92,6 +108,10 @@ namespace winpx
         proxyMode = GetPolicyOrRegistryValue("ProxyMode", ProxyMode::System);
         networkMode = GetPolicyOrRegistryValue("NetworkMode", NetworkMode::Loopback);
         allowedAuthenticationSchemes = AuthenticationSchemes(GetPolicyOrRegistryValue("AllowedAuthenticationSchemes", AuthenticationSchemes::Defaults().ToValue()));
+        ApplyGroupPolicyToAllowedAuthenticationSchemes(allowedAuthenticationSchemes, "AllowNegotiate"sv, AuthenticationScheme::Negotiate);
+        ApplyGroupPolicyToAllowedAuthenticationSchemes(allowedAuthenticationSchemes, "AllowNtlm"sv, AuthenticationScheme::Ntlm);
+        ApplyGroupPolicyToAllowedAuthenticationSchemes(allowedAuthenticationSchemes, "AllowDigest"sv, AuthenticationScheme::Digest);
+        ApplyGroupPolicyToAllowedAuthenticationSchemes(allowedAuthenticationSchemes, "AllowBasic"sv, AuthenticationScheme::Basic);
 
         firstRun = GetPolicyOrRegistryValue("FirstRun", true);
         autoStartApp = GetPolicyOrRegistryValue("AutoStartApp", true);
@@ -118,7 +138,7 @@ namespace winpx
 
         resolveTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ResolveTimeout"sv, 5000));
         connectTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ConnectTimeout"sv, 5000));
-        readTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ReadTimeout"sv, 30000));
+        readTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ReadTimeout"sv, 120000));
         writeTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("WriteTimeout"sv, 15000));
 
         if (guid.length() != 36)

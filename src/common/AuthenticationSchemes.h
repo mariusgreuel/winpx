@@ -53,6 +53,11 @@ namespace winpx
             m_schemes |= ToBit(authenticationScheme);
         }
 
+        void Remove(AuthenticationScheme authenticationScheme)
+        {
+            m_schemes &= ~ToBit(authenticationScheme);
+        }
+
         void Clear()
         {
             m_schemes = 0;

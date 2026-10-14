@@ -79,40 +79,52 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        if (GroupPolicy::GetValue("DisableSystemProxy", false))
+        ProxyMode proxyMode = ProxyMode::System;
+        if (GroupPolicy::TryGetValue("ProxyMode", proxyMode))
         {
             m_bntUseSystemProxy.EnableWindow(FALSE);
-            m_bntUseSystemProxy.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
-        }
-
-        if (GroupPolicy::GetValue("DisableWpad", false))
-        {
             m_bntUseWpad.EnableWindow(FALSE);
-            m_bntUseWpad.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
-        }
-
-        if (GroupPolicy::GetValue("DisablePac", false))
-        {
             m_bntUsePac.EnableWindow(FALSE);
-            m_bntUsePac.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
-        }
-
-        if (GroupPolicy::GetValue("DisableManualProxy", false))
-        {
             m_bntUseManualProxy.EnableWindow(FALSE);
-            m_bntUseManualProxy.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            m_bntNoProxy.EnableWindow(FALSE);
+            m_bntUseSystemProxy.SetCheck(proxyMode == ProxyMode::System ? BST_CHECKED : BST_UNCHECKED);
+            m_bntUseWpad.SetCheck(proxyMode == ProxyMode::AutoDetect ? BST_CHECKED : BST_UNCHECKED);
+            m_bntUsePac.SetCheck(proxyMode == ProxyMode::AutoConfig ? BST_CHECKED : BST_UNCHECKED);
+            m_bntUseManualProxy.SetCheck(proxyMode == ProxyMode::Manual ? BST_CHECKED : BST_UNCHECKED);
+            m_bntNoProxy.SetCheck(proxyMode == ProxyMode::Direct ? BST_CHECKED : BST_UNCHECKED);
+            ShowGroupPolicyNote();
         }
 
-        if (GroupPolicy::GetValue("DisableNoProxy", false))
+        std::string autoConfigUrl;
+        if (GroupPolicy::TryGetValue("AutoConfigUrl", autoConfigUrl))
         {
-            m_bntNoProxy.EnableWindow(FALSE);
-            m_bntNoProxy.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            m_ecAutoConfigUrl.EnableWindow(FALSE);
+            m_ecAutoConfigUrl.SetWindowText(Unicode::FromUtf8(autoConfigUrl).c_str());
+            ShowGroupPolicyNote();
         }
+
+        std::string httpProxyUrl;
+        if (GroupPolicy::TryGetValue("HttpProxyUrl", httpProxyUrl))
+        {
+            m_ecHttpProxyUrl.EnableWindow(FALSE);
+            m_ecHttpProxyUrl.SetWindowText(Unicode::FromUtf8(httpProxyUrl).c_str());
+            ShowGroupPolicyNote();
+        }
+
+        std::string httpsProxyUrl;
+        if (GroupPolicy::TryGetValue("HttpsProxyUrl", httpsProxyUrl))
+        {
+            m_ecHttpsProxyUrl.EnableWindow(FALSE);
+            m_ecHttpsProxyUrl.SetWindowText(Unicode::FromUtf8(httpsProxyUrl).c_str());
+            ShowGroupPolicyNote();
+        }
+    }
+
+    void DialogOptionsGateway::ShowGroupPolicyNote()
+    {
+        DoTraceMessage(WppGui, "%!FUNC!");
+
+        m_stGroupPolicy.ShowWindow(SW_SHOW);
     }
 
     void DialogOptionsGateway::UpdateControls()
@@ -141,12 +153,13 @@ namespace winpx
             proxyMode = ProxyMode::Direct;
         }
 
+        std::string dummy;
         m_stAutoConfigUrl.EnableWindow(proxyMode == ProxyMode::AutoConfig);
-        m_ecAutoConfigUrl.EnableWindow(proxyMode == ProxyMode::AutoConfig);
+        m_ecAutoConfigUrl.EnableWindow(proxyMode == ProxyMode::AutoConfig && !GroupPolicy::TryGetValue("AutoConfigUrl", dummy));
         m_stHttpProxyUrl.EnableWindow(proxyMode == ProxyMode::Manual);
-        m_ecHttpProxyUrl.EnableWindow(proxyMode == ProxyMode::Manual);
+        m_ecHttpProxyUrl.EnableWindow(proxyMode == ProxyMode::Manual && !GroupPolicy::TryGetValue("HttpProxyUrl", dummy));
         m_stHttpsProxyUrl.EnableWindow(proxyMode == ProxyMode::Manual);
-        m_ecHttpsProxyUrl.EnableWindow(proxyMode == ProxyMode::Manual);
+        m_ecHttpsProxyUrl.EnableWindow(proxyMode == ProxyMode::Manual && !GroupPolicy::TryGetValue("HttpsProxyUrl", dummy));
     }
 
     void DialogOptionsGateway::LoadSettings()

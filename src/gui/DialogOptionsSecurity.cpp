@@ -89,40 +89,52 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        if (GroupPolicy::GetValue("DisableNegotiateAuthentication"sv, false))
+        bool allowNegotiate = false;
+        if (GroupPolicy::TryGetValue("AllowNegotiate", allowNegotiate))
         {
             m_bntAllowNegotiate.EnableWindow(FALSE);
-            m_bntAllowNegotiate.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            m_bntAllowNegotiate.SetCheck(allowNegotiate ? BST_CHECKED : BST_UNCHECKED);
+            ShowGroupPolicyNote();
         }
 
-        if (GroupPolicy::GetValue("DisableNtlmAuthentication"sv, false))
+        bool allowNtlm = false;
+        if (GroupPolicy::TryGetValue("AllowNtlm", allowNtlm))
         {
             m_bntAllowNtlm.EnableWindow(FALSE);
-            m_bntAllowNtlm.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            m_bntAllowNtlm.SetCheck(allowNtlm ? BST_CHECKED : BST_UNCHECKED);
+            ShowGroupPolicyNote();
         }
 
-        if (GroupPolicy::GetValue("DisableDigestAuthentication"sv, false))
+        bool allowDigest = false;
+        if (GroupPolicy::TryGetValue("AllowDigest", allowDigest))
         {
             m_bntAllowDigest.EnableWindow(FALSE);
-            m_bntAllowDigest.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            m_bntAllowDigest.SetCheck(allowDigest ? BST_CHECKED : BST_UNCHECKED);
+            ShowGroupPolicyNote();
         }
 
-        if (GroupPolicy::GetValue("DisableBasicAuthentication"sv, false))
+        bool allowBasic = false;
+        if (GroupPolicy::TryGetValue("AllowBasic", allowBasic))
         {
             m_bntAllowBasic.EnableWindow(FALSE);
-            m_bntAllowBasic.SetCheck(BST_UNCHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            m_bntAllowBasic.SetCheck(allowBasic ? BST_CHECKED : BST_UNCHECKED);
+            ShowGroupPolicyNote();
         }
 
-        if (GroupPolicy::GetValue("RequireLocalAuthentication"sv, false))
+        bool requireLocalAuthentication = false;
+        if (GroupPolicy::TryGetValue("RequireLocalAuthentication", requireLocalAuthentication))
         {
             m_bntRequireLocalAuthentication.EnableWindow(FALSE);
-            m_bntRequireLocalAuthentication.SetCheck(BST_CHECKED);
-            m_stGroupPolicy.ShowWindow(SW_SHOW);
+            m_bntRequireLocalAuthentication.SetCheck(requireLocalAuthentication ? BST_CHECKED : BST_UNCHECKED);
+            ShowGroupPolicyNote();
         }
+    }
+
+    void DialogOptionsSecurity::ShowGroupPolicyNote()
+    {
+        DoTraceMessage(WppGui, "%!FUNC!");
+
+        m_stGroupPolicy.ShowWindow(SW_SHOW);
     }
 
     void DialogOptionsSecurity::UpdateControls()

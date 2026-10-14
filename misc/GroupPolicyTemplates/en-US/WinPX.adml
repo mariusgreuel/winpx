@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2021 Marius Greuel. All rights reserved. -->
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0" xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <displayName>WinPX</displayName>
+  <description>This file contains the WinPX language resources.</description>
+  <resources>
+    <stringTable>
+      <string id="WinPX">WinPX Proxy Server</string>
+      <string id="ProxyMode">Proxy Mode</string>
+      <string id="ProxyMode_Help">
+This policy setting allows you to specify the proxy mode for the WinPX proxy server.
+
+In 'Default' or 'System' mode, WinPX use the proxy settings configured in the Windows system settings.
+
+In 'AutoDetect' mode, WinPX will use Web Proxy Auto-Discovery (WPAD).
+
+In 'AutoConfig' mode, WinPX will use a proxy auto-configuration (PAC) file.
+
+In 'Manual' mode, you can manually specify the proxy servers used for HTTP and HTTPS connections.
+
+In 'Direct' mode, WinPX will not use any proxy server and will connect directly to the internet.
+
+If you enable this policy, the WinPX proxy server will be restricted to the selected proxy mode.
+
+If you disable this policy or do not configure it, the user will be able to manually change the proxy mode.
+      </string>
+      <string id="ProxyMode_Default">Default</string>
+      <string id="ProxyMode_System">System</string>
+      <string id="ProxyMode_Direct">Direct</string>
+      <string id="ProxyMode_Manual">Manual</string>
+      <string id="ProxyMode_AutoConfig">AutoConfig (PAC)</string>
+      <string id="ProxyMode_AutoDetect">AutoDetect (WPAD)</string>
+      <string id="NetworkMode">Network Mode</string>
+      <string id="NetworkMode_Help">
+This policy setting allows you to specify the network mode for the WinPX proxy server.
+
+In 'Loopback' mode, WinPX will only bind to the computers loopback network interface, i.e., the local network interface used for communication within the same device. The loopback adapter is typically represented by the IP address 127.0.0.1.
+
+In 'Loopback+WSL' mode, WinPX will bind to the computers loopback interface and also so the WSL2 network interface that is used to communicate to the WSL VM in NAT mode. If you configure the WSL network mode to Mirrored, the WSL VM can communication directly to the Windows hosts 127.0.0.1 addresss, and this option has no effect.
+
+In 'Any' mode, WinPX will bind to any network interface on your system, including public network interfaces. If the computers firewall settings permit it, this would make WinPX accessable from other computers on your network. You should only choose this option if you are aware of the security implications this option has.
+
+If you enable this policy, the WinPX proxy server will be restricted to the selected network mode.
+
+If you disable this policy or do not configure it, the user will be able to manually change the network mode.
+      </string>
+      <string id="NetworkMode_Loopback">Loopback</string>
+      <string id="NetworkMode_LoopbackAndWsl">Loopback + WSL</string>
+      <string id="NetworkMode_Any">Any</string>
+      <string id="AllowNegotiate">Allow Negotiate</string>
+      <string id="AllowNegotiate_Help">
+        This policy setting allows you to specify whether the WinPX proxy is allowed to use the 'Negotiate' authentication scheme.
+
+        As Negotiate is the most secure authentication scheme, it is recommended to not disable this policy. If Negotiate is not supported by the upstream proxy server, the WinPX proxy will automatically fall back to a less secure authentication scheme.
+
+        If you enable this policy, the WinPX proxy server will use the 'Negotiate' authentication scheme when this mode is supported by the upstream proxy server.
+
+        If you disable this policy, the WinPX proxy server will not use the 'Negotiate' authentication scheme.
+
+        If you do not configure this policy, the user will be able to choose whether to use the 'Negotiate' authentication scheme.
+      </string>
+      <string id="AllowNtlm">Allow NTLM</string>
+      <string id="AllowNtlm_Help">
+This policy setting allows you to specify whether the WinPX proxy is allowed to use the 'NTLM' authentication scheme.
+
+If you enable this policy, the WinPX proxy server will use the 'NTLM' authentication scheme when this mode is supported by the upstream proxy server and no better authentication scheme is available.
+
+If you disable this policy, the WinPX proxy server will not use the 'NTLM' authentication scheme.
+
+If you do not configure this policy, the user will be able to choose whether to use the 'NTLM' authentication scheme.
+      </string>
+      <string id="AllowDigest">Allow Digest</string>
+      <string id="AllowDigest_Help">
+This policy setting allows you to specify whether the WinPX proxy is allowed to use the 'Digest' authentication scheme.
+
+If you enable this policy, the WinPX proxy server will use the 'Digest' authentication scheme when this mode is supported by the upstream proxy server and no better authentication scheme is available.
+
+If you disable this policy, the WinPX proxy server will not use the 'Digest' authentication scheme.
+
+If you do not configure this policy, the user will be able to choose whether to use the 'Digest' authentication scheme.
+      </string>
+      <string id="AllowBasic">Allow Basic</string>
+      <string id="AllowBasic_Help">
+This policy setting allows you to specify whether the WinPX proxy is allowed to use the 'Basic' authentication scheme.
+
+If you enable this policy, the WinPX proxy server will use the 'Basic' authentication scheme when this mode is supported by the upstream proxy server and no better authentication scheme is available.
+
+If you disable this policy, the WinPX proxy server will not use the 'Basic' authentication scheme.
+
+If you do not configure this policy, the user will be able to choose whether to use the 'Basic' authentication scheme.
+      </string>
+      <string id="AutoStartApp">Auto Start Application</string>
+      <string id="AutoStartApp_Help">
+This policy setting allows you to specify whether the WinPX application should start automatically when the user logs in.
+
+If you enable this policy, the WinPX application will start automatically at user logon.
+
+If you disable this policy, the WinPX application will not start automatically at user logon.
+
+If you do not configure this policy, the user will be able to choose whether to start the WinPX application automatically.
+      </string>
+      <string id="AutoStartProxy">Auto Start Proxy</string>
+      <string id="AutoStartProxy_Help">
+This policy setting allows you to specify whether the proxy server should be started when the WinPX application is started. If you prefer WinPX to run in the background without starting the proxy server immediately, you can disable this policy.
+
+If you enable this policy, the proxy server will be started when the WinPX application is started.
+
+If you disable this policy, the WinPX application will run without starting the proxy server. Users can manually start the proxy server by clicking 'Start' from the WinPX system tray icon menu.
+
+If you do not configure this policy, the user will be able to choose whether to start the WinPX proxy server automatically.
+      </string>
+      <string id="SetEnvironmentVariables">Set Environment Variables</string>
+      <string id="SetEnvironmentVariables_Help">
+This policy setting allows you to specify whether the WinPX proxy should set the http_proxy/https_proxy environment variables.
+
+If you enable this policy, the WinPX proxy server will set the http_proxy/https_proxy environment variables at startup.
+
+If you disable this policy, the WinPX proxy server will not set the http_proxy/https_proxy environment variables.
+
+If you do not configure this policy, the user will be able to choose whether to set the http_proxy/https_proxy environment variables.
+      </string>
+      <string id="RequireLocalAuthentication">Require Local Authentication</string>
+      <string id="RequireLocalAuthentication_Help">
+This policy setting allows you to specify whether the WinPX proxy requires local authentication.
+This is useful when you run WinPX on a computer that is shared with other users, such as a Remote Desktop Services (RDS). By requiring authentication, you can prevent other users from using your WinPX proxy server without your permission.
+
+If you enable this policy, the WinPX proxy server will require local authentication. Users will need to use the proxy URL as displayed in the WinPX application to access the proxy server.
+
+If you disable this policy, the WinPX proxy server will not require local authentication.
+
+If you do not configure this policy, the user will be able to choose whether to require local authentication.
+      </string>
+      <string id="ReuseSocketAddresses">Reuse Socket Addresses</string>
+      <string id="ReuseSocketAddresses_Help">
+This policy setting allows you to specify whether the WinPX proxy should reuse socket addresses.
+
+If you enable or do not configure this policy, the WinPX proxy server will reuse socket addresses. If the proxy network port is already in use, the WinPX proxy server will attempt to bind to the same port and reuse the existing socket address.
+
+If you disable this policy, the WinPX proxy server will not reuse socket addresses. If the proxy network port is already in use, the WinPX proxy server will generate an error and will not start.
+      </string>
+      <string id="Port">Port</string>
+      <string id="Port_Help">
+This policy setting allows you to specify the network port number for the WinPX proxy.
+
+If you enable this policy, the WinPX proxy server will use the specified port number.
+
+If you disable this policy or do not configure it, the user will be able to manually change the port number.
+      </string>
+      <string id="AutoConfigUrl">Proxy Auto Config (PAC) URL</string>
+      <string id="AutoConfigUrl_Help">
+This policy setting allows you to specify the URL of the proxy auto configuration script (PAC).
+
+If you enable this policy, the WinPX proxy server will use the specified PAC URL.
+
+If you disable this policy or do not configure it, the user will be able to manually change the proxy auto configuration URL.
+      </string>
+      <string id="HttpProxyUrl">HTTP Proxy URL</string>
+      <string id="HttpProxyUrl_Help">
+This policy setting allows you to specify the URL of the HTTP proxy server if manually configured.
+
+If you enable this policy, the WinPX proxy server will use the specified HTTP proxy URL.
+
+If you disable this policy or do not configure it, the user will be able to manually change the HTTP proxy URL.
+      </string>
+      <string id="HttpsProxyUrl">HTTPS Proxy URL</string>
+      <string id="HttpsProxyUrl_Help">
+This policy setting allows you to specify the URL of the HTTPS proxy server if manually configured.
+
+If you enable this policy, the WinPX proxy server will use the specified HTTPS proxy URL.
+
+If you disable this policy or do not configure it, the user will be able to manually change the HTTPS proxy URL.
+      </string>
+      <string id="DiagnosticUrls">Diagnostic URLs</string>
+      <string id="DiagnosticUrls_Help">
+This policy setting allows you to specify the URLs for diagnostic purposes.
+
+If you enable this policy, the WinPX proxy server will use the specified URLs for diagnostic purposes.
+
+If you disable this policy or do not configure it, the default URLs will be used for diagnostic purposes.
+      </string>
+      <string id="ResolveTimeout">Resolve Timeout</string>
+      <string id="ResolveTimeout_Help">
+This policy setting allows you to specify the timeout duration for DNS resolution.
+
+If you enable this policy, the WinPX proxy server will use the specified timeout duration for DNS resolution.
+
+If you disable this policy or do not configure it, the default timeout duration will be used.
+      </string>
+      <string id="ConnectTimeout">Connect Timeout</string>
+      <string id="ConnectTimeout_Help">
+This policy setting allows you to specify the timeout duration for establishing a HTTP connection.
+
+If you enable this policy, the WinPX proxy server will use the specified timeout duration for establishing a HTTP connection.
+
+If you disable this policy or do not configure it, the default timeout duration will be used.
+      </string>
+      <string id="ReadTimeout">Read Timeout</string>
+      <string id="ReadTimeout_Help">
+This policy setting allows you to specify the timeout duration for reading data.
+
+If you enable this policy, the WinPX proxy server will use the specified timeout duration for reading data.
+
+If you disable this policy or do not configure it, the default timeout duration will be used.
+      </string>
+      <string id="WriteTimeout">Write Timeout</string>
+      <string id="WriteTimeout_Help">
+This policy setting allows you to specify the timeout duration for writing data.
+
+If you enable this policy, the WinPX proxy server will use the specified timeout duration for writing data.
+
+If you disable this policy or do not configure it, the default timeout duration will be used.
+      </string>
+      <string id="HelpUrlGeneral">Help URL General</string>
+      <string id="HelpUrlGeneral_Help">
+This policy setting allows you to specify the help URL for the General tab of the Options dialog.
+
+If you enable this policy, the WinPX application will use the specified help URL for the General tab of the Options dialog.
+
+If you disable this policy or do not configure it, the default help URL will be used for the General tab of the Options dialog.
+      </string>
+      <string id="HelpUrlGateway">Help URL Gateway</string>
+      <string id="HelpUrlGateway_Help">
+This policy setting allows you to specify the help URL for the Gateway tab of the Options dialog.
+
+If you enable this policy, the WinPX application will use the specified help URL for the Gateway tab of the Options dialog.
+
+If you disable this policy or do not configure it, the default help URL will be used for the Gateway tab of the Options dialog.
+      </string>
+      <string id="HelpUrlSecurity">Help URL Security</string>
+      <string id="HelpUrlSecurity_Help">
+This policy setting allows you to specify the help URL for the Security tab of the Options dialog.
+
+If you enable this policy, the WinPX application will use the specified help URL for the Security tab of the Options dialog.
+
+If you disable this policy or do not configure it, the default help URL will be used for the Security tab of the Options dialog.
+      </string>
+      <string id="HelpUrlStatus">Help URL Status</string>
+      <string id="HelpUrlStatus_Help">
+This policy setting allows you to specify the help URL for the Status tab of the Options dialog.
+
+If you enable this policy, the WinPX application will use the specified help URL for the Status tab of the Options dialog.
+
+If you disable this policy or do not configure it, the default help URL will be used for the Status tab of the Options dialog.
+      </string>
+      <string id="HelpUrlDiagnostics">Help URL Diagnostics</string>
+      <string id="HelpUrlDiagnostics_Help">
+This policy setting allows you to specify the help URL for the Diagnostics tab of the Options dialog.
+
+If you enable this policy, the WinPX application will use the specified help URL for the Diagnostics tab of the Options dialog.
+
+If you disable this policy or do not configure it, the default help URL will be used for the Diagnostics tab of the Options dialog.
+      </string>
+      <string id="HelpUrlAbout">Help URL About</string>
+      <string id="HelpUrlAbout_Help">
+This policy setting allows you to specify the help URL for the About tab of the Options dialog.
+
+If you enable this policy, the WinPX application will use the specified help URL for the About tab of the Options dialog.
+
+If you disable this policy or do not configure it, the default help URL will be used for the About tab of the Options dialog.
+      </string>
+    </stringTable>
+    <presentationTable>
+      <presentation id="ProxyMode">
+<dropdownList refId="ProxyMode_Dropdown" noSort="true" defaultItem="0">Proxy Mode:</dropdownList>
+      </presentation>
+      <presentation id="NetworkMode">
+<dropdownList refId="NetworkMode_Dropdown" noSort="true" defaultItem="0">Network Mode:</dropdownList>
+      </presentation>
+      <presentation id="Port">
+<text>Enter the network port number for the WinPX proxy.</text>
+<decimalTextBox refId="Port" defaultValue="3128" spin="true">Port:</decimalTextBox>
+      </presentation>
+      <presentation id="AutoConfigUrl">
+<textBox refId="AutoConfigUrl_Message">
+  <label>Proxy Auto Config URL:</label>
+</textBox>
+<text>Enter the URL of the proxy auto configuration script (PAC).</text>
+      </presentation>
+      <presentation id="HttpProxyUrl">
+<textBox refId="HttpProxyUrl_Message">
+  <label>HTTP Proxy URL:</label>
+</textBox>
+<text>Enter the URL of the HTTP proxy server.</text>
+      </presentation>
+      <presentation id="HttpsProxyUrl">
+<textBox refId="HttpsProxyUrl_Message">
+  <label>HTTPS Proxy URL:</label>
+</textBox>
+<text>Enter the URL of the HTTPS proxy server.</text>
+      </presentation>
+      <presentation id="DiagnosticUrls">
+<textBox refId="DiagnosticUrls_Message">
+  <label>Diagnostic URLs:</label>
+</textBox>
+<text>Enter the URLs for diagnostic purposes.</text>
+      </presentation>
+      <presentation id="ResolveTimeout">
+<text>Enter the timeout duration for DNS resolution in milliseconds.</text>
+<decimalTextBox refId="ResolveTimeout" defaultValue="5000" spin="true">Resolve Timeout:</decimalTextBox>
+      </presentation>
+      <presentation id="ConnectTimeout">
+<text>Enter the timeout duration for establishing a HTTP connection in milliseconds.</text>
+<decimalTextBox refId="ConnectTimeout" defaultValue="5000" spin="true">Connect Timeout:</decimalTextBox>
+      </presentation>
+      <presentation id="ReadTimeout">
+<text>Enter the timeout duration for reading data in milliseconds.</text>
+<decimalTextBox refId="ReadTimeout" defaultValue="120000" spin="true">Read Timeout:</decimalTextBox>
+      </presentation>
+      <presentation id="WriteTimeout">
+<text>Enter the timeout duration for writing data in milliseconds.</text>
+<decimalTextBox refId="WriteTimeout" defaultValue="15000" spin="true">Write Timeout:</decimalTextBox>
+      </presentation>
+      <presentation id="HelpUrlGeneral">
+<textBox refId="HelpUrlGeneral_Message">
+  <label>Help URL General:</label>
+</textBox>
+<text>Enter the help URL for the General tab of the Options dialog.</text>
+      </presentation>
+      <presentation id="HelpUrlGateway">
+<textBox refId="HelpUrlGateway_Message">
+  <label>Help URL Gateway:</label>
+</textBox>
+<text>Enter the help URL for the Gateway tab of the Options dialog.</text>
+      </presentation>
+      <presentation id="HelpUrlSecurity">
+<textBox refId="HelpUrlSecurity_Message">
+  <label>Help URL Security:</label>
+</textBox>
+<text>Enter the help URL for the Security tab of the Options dialog.</text>
+      </presentation>
+      <presentation id="HelpUrlStatus">
+<textBox refId="HelpUrlStatus_Message">
+  <label>Help URL Status:</label>
+</textBox>
+<text>Enter the help URL for the Status tab of the Options dialog.</text>
+      </presentation>
+      <presentation id="HelpUrlDiagnostics">
+<textBox refId="HelpUrlDiagnostics_Message">
+  <label>Help URL Diagnostics:</label>
+</textBox>
+<text>Enter the help URL for the Diagnostics tab of the Options dialog.</text>
+      </presentation>
+      <presentation id="HelpUrlAbout">
+<textBox refId="HelpUrlAbout_Message">
+  <label>Help URL About:</label>
+</textBox>
+<text>Enter the help URL for the About tab of the Options dialog.</text>
+      </presentation>
+    </presentationTable>
+  </resources>
+</policyDefinitionResources>

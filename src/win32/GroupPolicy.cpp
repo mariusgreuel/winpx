@@ -18,64 +18,79 @@ namespace win32
         m_rootKey = Unicode::FromUtf8(rootKey);
     }
 
-    bool GroupPolicy::GetValue(std::string_view valueName, bool defaultValue)
+    bool GroupPolicy::TryGetValue(std::string_view valueName, bool& value)
     {
         auto valueNameW = Unicode::FromUtf8(valueName);
-        bool value = defaultValue;
 
         HRESULT hr = QueryValue(HKEY_LOCAL_MACHINE, m_rootKey.c_str(), valueNameW.c_str(), value);
         if (SUCCEEDED(hr))
         {
-            return value;
+            return true;
         }
 
         hr = QueryValue(HKEY_CURRENT_USER, m_rootKey.c_str(), valueNameW.c_str(), value);
         if (SUCCEEDED(hr))
         {
-            return value;
+            return true;
         }
 
-        return defaultValue;
+        return false;
+    }
+
+    bool GroupPolicy::TryGetValue(std::string_view valueName, int& value)
+    {
+        auto valueNameW = Unicode::FromUtf8(valueName);
+
+        HRESULT hr = QueryValue(HKEY_LOCAL_MACHINE, m_rootKey.c_str(), valueNameW.c_str(), value);
+        if (SUCCEEDED(hr))
+        {
+            return true;
+        }
+
+        hr = QueryValue(HKEY_CURRENT_USER, m_rootKey.c_str(), valueNameW.c_str(), value);
+        if (SUCCEEDED(hr))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool GroupPolicy::TryGetValue(std::string_view valueName, std::string& value)
+    {
+        auto valueNameW = Unicode::FromUtf8(valueName);
+
+        HRESULT hr = QueryValue(HKEY_LOCAL_MACHINE, m_rootKey.c_str(), valueNameW.c_str(), value);
+        if (SUCCEEDED(hr))
+        {
+            return true;
+        }
+
+        hr = QueryValue(HKEY_CURRENT_USER, m_rootKey.c_str(), valueNameW.c_str(), value);
+        if (SUCCEEDED(hr))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool GroupPolicy::GetValue(std::string_view valueName, bool defaultValue)
+    {
+        bool value = defaultValue;
+        return TryGetValue(valueName, value) ? value : defaultValue;
     }
 
     int GroupPolicy::GetValue(std::string_view valueName, int defaultValue)
     {
-        auto valueNameW = Unicode::FromUtf8(valueName);
         int value = defaultValue;
-
-        HRESULT hr = QueryValue(HKEY_LOCAL_MACHINE, m_rootKey.c_str(), valueNameW.c_str(), value);
-        if (SUCCEEDED(hr))
-        {
-            return value;
-        }
-
-        hr = QueryValue(HKEY_CURRENT_USER, m_rootKey.c_str(), valueNameW.c_str(), value);
-        if (SUCCEEDED(hr))
-        {
-            return value;
-        }
-
-        return defaultValue;
+        return TryGetValue(valueName, value) ? value : defaultValue;
     }
 
     std::string GroupPolicy::GetValue(std::string_view valueName, std::string_view defaultValue)
     {
-        auto valueNameW = Unicode::FromUtf8(valueName);
         std::string value(defaultValue);
-
-        HRESULT hr = QueryValue(HKEY_LOCAL_MACHINE, m_rootKey.c_str(), valueNameW.c_str(), value);
-        if (SUCCEEDED(hr))
-        {
-            return value;
-        }
-
-        hr = QueryValue(HKEY_CURRENT_USER, m_rootKey.c_str(), valueNameW.c_str(), value);
-        if (SUCCEEDED(hr))
-        {
-            return value;
-        }
-
-        return std::string(defaultValue);
+        return TryGetValue(valueName, value) ? value : std::string(defaultValue);
     }
 
     HRESULT GroupPolicy::QueryValue(HKEY hKeyParent, LPCTSTR pszKeyName, LPCTSTR pszValueName, bool& value)

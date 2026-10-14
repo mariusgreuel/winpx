@@ -14,6 +14,23 @@ namespace win32
     public:
         static void SetRootKey(std::string_view rootKey);
 
+        static bool TryGetValue(std::string_view valueName, bool& value);
+        static bool TryGetValue(std::string_view valueName, int& value);
+        static bool TryGetValue(std::string_view valueName, std::string& value);
+
+        template<typename T, typename = std::enable_if_t<std::is_integral<T>::value || std::is_enum<T>::value>>
+        static bool TryGetValue(std::string_view valueName, T& value)
+        {
+            int intValue = 0;
+            if (TryGetValue(valueName, intValue))
+            {
+                value = static_cast<T>(intValue);
+                return true;
+            }
+
+            return false;
+        }
+
         static bool GetValue(std::string_view valueName, bool defaultValue);
         static int GetValue(std::string_view valueName, int defaultValue);
         static std::string GetValue(std::string_view valueName, std::string_view defaultValue);

@@ -1,0 +1,271 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2021 Marius Greuel. All rights reserved. -->
+<policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0" xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions">
+  <policyNamespaces>
+    <target prefix="winpx" namespace="MariusGreuel.Policies.WinPX" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0" fallbackCulture="en-US" />
+  <categories>
+    <category name="WinPX" displayName="$(string.WinPX)">
+    </category>
+  </categories>
+  <policies>
+    <policy name="ProxyMode" class="Both" displayName="$(string.ProxyMode)" explainText="$(string.ProxyMode_Help)" presentation="$(presentation.ProxyMode)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <enum id="ProxyMode_Dropdown" valueName="ProxyMode">
+          <item displayName="$(string.ProxyMode_Default)">
+            <value>
+              <decimal value="0" />
+            </value>
+          </item>
+          <item displayName="$(string.ProxyMode_System)">
+            <value>
+              <decimal value="1" />
+            </value>
+          </item>
+          <item displayName="$(string.ProxyMode_Direct)">
+            <value>
+              <decimal value="2" />
+            </value>
+          </item>
+          <item displayName="$(string.ProxyMode_Manual)">
+            <value>
+              <decimal value="3" />
+            </value>
+          </item>
+          <item displayName="$(string.ProxyMode_AutoConfig)">
+            <value>
+              <decimal value="4" />
+            </value>
+          </item>
+          <item displayName="$(string.ProxyMode_AutoDetect)">
+            <value>
+              <decimal value="5" />
+            </value>
+          </item>
+        </enum>
+      </elements>
+    </policy>
+    <policy name="NetworkMode" class="Both" displayName="$(string.NetworkMode)" explainText="$(string.NetworkMode_Help)" presentation="$(presentation.NetworkMode)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <enum id="NetworkMode_Dropdown" valueName="NetworkMode">
+          <item displayName="$(string.NetworkMode_Loopback)">
+            <value>
+              <decimal value="0" />
+            </value>
+          </item>
+          <item displayName="$(string.NetworkMode_LoopbackAndWsl)">
+            <value>
+              <decimal value="1" />
+            </value>
+          </item>
+          <item displayName="$(string.NetworkMode_Any)">
+            <value>
+              <decimal value="2" />
+            </value>
+          </item>
+        </enum>
+      </elements>
+    </policy>
+    <policy name="AllowNegotiate" class="Both" displayName="$(string.AllowNegotiate)" explainText="$(string.AllowNegotiate_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="AllowNegotiate">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="AllowNtlm" class="Both" displayName="$(string.AllowNtlm)" explainText="$(string.AllowNtlm_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="AllowNtlm">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="AllowDigest" class="Both" displayName="$(string.AllowDigest)" explainText="$(string.AllowDigest_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="AllowDigest">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="AllowBasic" class="Both" displayName="$(string.AllowBasic)" explainText="$(string.AllowBasic_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="AllowBasic">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="AutoStartApp" class="Both" displayName="$(string.AutoStartApp)" explainText="$(string.AutoStartApp_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="AutoStartApp">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="AutoStartProxy" class="Both" displayName="$(string.AutoStartProxy)" explainText="$(string.AutoStartProxy_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="AutoStartProxy">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="SetEnvironmentVariables" class="Both" displayName="$(string.SetEnvironmentVariables)" explainText="$(string.SetEnvironmentVariables_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="SetEnvironmentVariables">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="RequireLocalAuthentication" class="Both" displayName="$(string.RequireLocalAuthentication)" explainText="$(string.RequireLocalAuthentication_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="RequireLocalAuthentication">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="ReuseSocketAddresses" class="Both" displayName="$(string.ReuseSocketAddresses)" explainText="$(string.ReuseSocketAddresses_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="ReuseSocketAddresses">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
+    <policy name="Port" class="Both" displayName="$(string.Port)" explainText="$(string.Port_Help)" presentation="$(presentation.Port)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="Port" valueName="Port" minValue="1024" maxValue="65535" />
+      </elements>
+    </policy>
+    <policy name="AutoConfigUrl" class="Both" displayName="$(string.AutoConfigUrl)" explainText="$(string.AutoConfigUrl_Help)" presentation="$(presentation.AutoConfigUrl)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="AutoConfigUrl_Message" valueName="AutoConfigUrl" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="HttpProxyUrl" class="Both" displayName="$(string.HttpProxyUrl)" explainText="$(string.HttpProxyUrl_Help)" presentation="$(presentation.HttpProxyUrl)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="HttpProxyUrl_Message" valueName="HttpProxyUrl" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="HttpsProxyUrl" class="Both" displayName="$(string.HttpsProxyUrl)" explainText="$(string.HttpsProxyUrl_Help)" presentation="$(presentation.HttpsProxyUrl)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="HttpsProxyUrl_Message" valueName="HttpsProxyUrl" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="DiagnosticUrls" class="Both" displayName="$(string.DiagnosticUrls)" explainText="$(string.DiagnosticUrls_Help)" presentation="$(presentation.DiagnosticUrls)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="DiagnosticUrls_Message" valueName="DiagnosticUrls" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="ResolveTimeout" class="Both" displayName="$(string.ResolveTimeout)" explainText="$(string.ResolveTimeout_Help)" presentation="$(presentation.ResolveTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="ResolveTimeout" valueName="ResolveTimeout" minValue="1000" maxValue="3600000" />
+      </elements>
+    </policy>
+    <policy name="ConnectTimeout" class="Both" displayName="$(string.ConnectTimeout)" explainText="$(string.ConnectTimeout_Help)" presentation="$(presentation.ConnectTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="ConnectTimeout" valueName="ConnectTimeout" minValue="1000" maxValue="3600000" />
+      </elements>
+    </policy>
+    <policy name="ReadTimeout" class="Both" displayName="$(string.ReadTimeout)" explainText="$(string.ReadTimeout_Help)" presentation="$(presentation.ReadTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="ReadTimeout" valueName="ReadTimeout" minValue="1000" maxValue="3600000" />
+      </elements>
+    </policy>
+    <policy name="WriteTimeout" class="Both" displayName="$(string.WriteTimeout)" explainText="$(string.WriteTimeout_Help)" presentation="$(presentation.WriteTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="WriteTimeout" valueName="WriteTimeout" minValue="1000" maxValue="3600000" />
+      </elements>
+    </policy>
+    <policy name="HelpUrlGeneral" class="Both" displayName="$(string.HelpUrlGeneral)" explainText="$(string.HelpUrlGeneral_Help)" presentation="$(presentation.HelpUrlGeneral)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="HelpUrlGeneral_Message" valueName="HelpUrlGeneral" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="HelpUrlGateway" class="Both" displayName="$(string.HelpUrlGateway)" explainText="$(string.HelpUrlGateway_Help)" presentation="$(presentation.HelpUrlGateway)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="HelpUrlGateway_Message" valueName="HelpUrlGateway" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="HelpUrlSecurity" class="Both" displayName="$(string.HelpUrlSecurity)" explainText="$(string.HelpUrlSecurity_Help)" presentation="$(presentation.HelpUrlSecurity)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="HelpUrlSecurity_Message" valueName="HelpUrlSecurity" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="HelpUrlStatus" class="Both" displayName="$(string.HelpUrlStatus)" explainText="$(string.HelpUrlStatus_Help)" presentation="$(presentation.HelpUrlStatus)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="HelpUrlStatus_Message" valueName="HelpUrlStatus" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="HelpUrlDiagnostics" class="Both" displayName="$(string.HelpUrlDiagnostics)" explainText="$(string.HelpUrlDiagnostics_Help)" presentation="$(presentation.HelpUrlDiagnostics)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="HelpUrlDiagnostics_Message" valueName="HelpUrlDiagnostics" required="true" expand="true" />
+      </elements>
+    </policy>
+    <policy name="HelpUrlAbout" class="Both" displayName="$(string.HelpUrlAbout)" explainText="$(string.HelpUrlAbout_Help)" presentation="$(presentation.HelpUrlAbout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <text id="HelpUrlAbout_Message" valueName="HelpUrlAbout" required="true" expand="true" />
+      </elements>
+    </policy>
+  </policies>
+</policyDefinitions>
