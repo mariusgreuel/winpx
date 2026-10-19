@@ -148,9 +148,6 @@
     <ClInclude Include="SystemProxyConfiguration.h">
       <Filter>1 Proxy</Filter>
     </ClInclude>
-    <ClInclude Include="Tools.h">
-      <Filter>1 Proxy</Filter>
-    </ClInclude>
     <ClInclude Include="CommandLineParser.h">
       <Filter>3 Misc</Filter>
     </ClInclude>
@@ -170,6 +167,9 @@
       <Filter>3 Misc</Filter>
     </ClInclude>
     <ClInclude Include="Version.h" />
+    <ClInclude Include="StringHelper.h">
+      <Filter>3 Misc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="LocalWpp.ini" />

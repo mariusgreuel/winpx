@@ -9,7 +9,7 @@
 #include "WebServer.tmh"
 
 #include "HttpError.h"
-#include "Tools.h"
+#include "StringHelper.h"
 #include "Uri.h"
 #include "Version.h"
 

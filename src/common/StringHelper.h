@@ -1,5 +1,5 @@
 //
-// Tools.h
+// StringHelper.h
 // Copyright (c) 2021 Marius Greuel. All rights reserved.
 //
 

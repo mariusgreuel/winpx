@@ -1,9 +1,9 @@
 //
-// ToolsTests.cpp
+// StringHelperTests.cpp
 // Copyright (c) 2021 Marius Greuel. All rights reserved.
 //
 
-#include <common/Tools.h>
+#include <common/StringHelper.h>
 
 #include <gtest/gtest.h>
 
@@ -14,7 +14,7 @@ namespace UnitTests
     using namespace winpx;
     using namespace std::literals::string_view_literals;
 
-    TEST(ToolsTests, ToLowerChar)
+    TEST(StringHelperTests, ToLowerChar)
     {
         ASSERT_EQ(ToLower('0'), '0');
         ASSERT_EQ(ToLower('a'), 'a');
@@ -23,7 +23,7 @@ namespace UnitTests
         ASSERT_EQ(ToLower('Z'), 'z');
     };
 
-    TEST(ToolsTests, ToUpperChar)
+    TEST(StringHelperTests, ToUpperChar)
     {
         ASSERT_EQ(ToUpper('0'), '0');
         ASSERT_EQ(ToUpper('a'), 'A');
@@ -32,19 +32,19 @@ namespace UnitTests
         ASSERT_EQ(ToUpper('Z'), 'Z');
     };
 
-    TEST(ToolsTests, ToLowerText)
+    TEST(StringHelperTests, ToLowerText)
     {
         ASSERT_EQ(ToLower(""), "");
         ASSERT_EQ(ToLower(" 0123aaBBccDD#XyZ$"), " 0123aabbccdd#xyz$");
     };
 
-    TEST(ToolsTests, ToUpperText)
+    TEST(StringHelperTests, ToUpperText)
     {
         ASSERT_EQ(ToUpper(""), "");
         ASSERT_EQ(ToUpper(" 0123aaBBccDD#XyZ$"), " 0123AABBCCDD#XYZ$");
     };
 
-    TEST(ToolsTests, IEquals)
+    TEST(StringHelperTests, IEquals)
     {
         ASSERT_TRUE(IEquals(""sv, ""sv));
         ASSERT_TRUE(IEquals("0"sv, "0"sv));
@@ -65,7 +65,7 @@ namespace UnitTests
         ASSERT_FALSE(IEquals("bbb"sv, "bb"sv));
     };
 
-    TEST(ToolsTests, IStartsWith)
+    TEST(StringHelperTests, IStartsWith)
     {
         ASSERT_TRUE(IStartsWith(""sv, ""sv));
         ASSERT_TRUE(IStartsWith("a"sv, ""sv));
@@ -89,7 +89,7 @@ namespace UnitTests
         ASSERT_FALSE(IStartsWith("abcdef"sv, "xbcx"sv));
     };
 
-    TEST(ToolsTests, Trim)
+    TEST(StringHelperTests, Trim)
     {
         ASSERT_EQ(Trim(""sv, ' '), ""sv);
         ASSERT_EQ(Trim("bla"sv, ' '), "bla"sv);
@@ -98,7 +98,7 @@ namespace UnitTests
         ASSERT_EQ(Trim("   bla bla   "sv, ' '), "bla bla"sv);
     };
 
-    TEST(ToolsTests, GetSubstring)
+    TEST(StringHelperTests, GetSubstring)
     {
         size_t offset = 0;
         std::string_view token;
@@ -119,7 +119,7 @@ namespace UnitTests
         ASSERT_FALSE(GetSubstring("a  bb ccc   dddd "sv, offset, token, ' ') && offset == 7);
     };
 
-    TEST(ToolsTests, SplitString)
+    TEST(StringHelperTests, SplitString)
     {
         ASSERT_EQ(SplitString(""sv, ' '), std::vector<std::string_view>{});
         ASSERT_EQ(SplitString("a"sv, ' '), std::vector{ "a"sv });
@@ -134,14 +134,14 @@ namespace UnitTests
         ASSERT_EQ(SplitString("a,b,c,d"sv, ','), (std::vector{ "a"sv, "b"sv, "c"sv, "d"sv }));
     };
 
-    TEST(ToolsTests, ParseDec)
+    TEST(StringHelperTests, ParseDec)
     {
         ASSERT_EQ(ParseDec("0"sv), 0);
         ASSERT_EQ(ParseDec("1"sv), 1);
         ASSERT_EQ(ParseDec("12345"sv), 12345);
     };
 
-    TEST(ToolsTests, ParseHex)
+    TEST(StringHelperTests, ParseHex)
     {
         ASSERT_EQ(ParseHex("0"sv), 0);
         ASSERT_EQ(ParseHex("1"sv), 1);
@@ -149,7 +149,7 @@ namespace UnitTests
         ASSERT_EQ(ParseHex("123aBc"sv), 0x123ABC);
     };
 
-    TEST(ToolsTests, ParseDecRejectsInvalidInput)
+    TEST(StringHelperTests, ParseDecRejectsInvalidInput)
     {
         ASSERT_THROW(ParseDec(""sv), std::invalid_argument);
         ASSERT_THROW(ParseDec("xyz"sv), std::invalid_argument);
@@ -159,7 +159,7 @@ namespace UnitTests
         ASSERT_THROW(ParseDec<size_t>("99999999999999999999"sv), std::out_of_range);
     };
 
-    TEST(ToolsTests, ParseHexRejectsInvalidInput)
+    TEST(StringHelperTests, ParseHexRejectsInvalidInput)
     {
         ASSERT_THROW(ParseHex(""sv), std::invalid_argument);
         ASSERT_THROW(ParseHex("xyz"sv), std::invalid_argument);

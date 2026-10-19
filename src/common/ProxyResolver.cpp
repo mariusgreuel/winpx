@@ -9,7 +9,7 @@
 #include "ProxyResolver.tmh"
 
 #include "HttpHelper.h"
-#include "Tools.h"
+#include "StringHelper.h"
 #include "Uri.h"
 #include <win32/Unicode.h>
 #include <win32/Win32Error.h>

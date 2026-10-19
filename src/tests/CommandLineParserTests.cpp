@@ -5,7 +5,7 @@
 
 #include <common/CommandLineParser.h>
 
-#include <common/Tools.h>
+#include <common/StringHelper.h>
 
 #include <gtest/gtest.h>
 

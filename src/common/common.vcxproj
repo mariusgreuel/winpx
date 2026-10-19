@@ -255,7 +255,7 @@
     <ClInclude Include="ProxyResolver.h" />
     <ClInclude Include="ProxyStatistics.h" />
     <ClInclude Include="ProxyStatus.h" />
-    <ClInclude Include="Tools.h" />
+    <ClInclude Include="StringHelper.h" />
     <ClInclude Include="Uri.h" />
     <ClInclude Include="Version.h" />
     <ClInclude Include="ProxyAuthenticationSession.h" />

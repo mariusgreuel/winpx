@@ -8,7 +8,7 @@
 #include "Wsl.h"
 #include "Wsl.tmh"
 
-#include "Tools.h"
+#include "StringHelper.h"
 #include <win32/Win32.h>
 
 namespace winpx

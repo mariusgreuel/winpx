@@ -16,7 +16,7 @@
     <ClCompile Include="ProxySystemTests.cpp">
       <Filter>2 SystemTests</Filter>
     </ClCompile>
-    <ClCompile Include="ToolsTests.cpp">
+    <ClCompile Include="StringHelperTests.cpp">
       <Filter>1 UnitTests</Filter>
     </ClCompile>
     <ClCompile Include="UnicodeTests.cpp">

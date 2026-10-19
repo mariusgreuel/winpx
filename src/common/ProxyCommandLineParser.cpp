@@ -7,7 +7,7 @@
 
 #include "ProxyCommandLineParser.h"
 
-#include "Tools.h"
+#include "StringHelper.h"
 
 namespace winpx
 {

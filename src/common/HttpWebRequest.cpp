@@ -8,7 +8,7 @@
 #include "HttpWebRequest.h"
 #include "HttpWebRequest.tmh"
 
-#include "Tools.h"
+#include "StringHelper.h"
 #include <win32/Unicode.h>
 #include <win32/Win32.h>
 #include <win32/Win32Error.h>

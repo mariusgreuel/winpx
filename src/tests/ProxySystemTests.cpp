@@ -6,7 +6,7 @@
 #include <common/pch.h>
 
 #include <common/Proxy.h>
-#include <common/Tools.h>
+#include <common/StringHelper.h>
 #include <win32/Base64.h>
 
 #include <gtest/gtest.h>

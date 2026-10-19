@@ -141,7 +141,7 @@
     <ClCompile Include="HttpResponseMessageTests.cpp" />
     <ClCompile Include="HttpHelperTests.cpp" />
     <ClCompile Include="ProxySystemTests.cpp" />
-    <ClCompile Include="ToolsTests.cpp" />
+    <ClCompile Include="StringHelperTests.cpp" />
     <ClCompile Include="UnicodeTests.cpp" />
     <ClCompile Include="UriTests.cpp" />
   </ItemGroup>

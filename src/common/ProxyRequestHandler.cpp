@@ -11,7 +11,7 @@
 #include "HttpError.h"
 #include "HttpHelper.h"
 #include "ProxyAuthenticationSession.h"
-#include "Tools.h"
+#include "StringHelper.h"
 #include "Uri.h"
 #include "WebServer.h"
 #include <win32/Base64.h>

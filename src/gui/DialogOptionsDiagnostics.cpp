@@ -10,7 +10,7 @@
 
 #include "OnlineHelp.h"
 #include <common/HttpWebRequest.h>
-#include <common/Tools.h>
+#include <common/StringHelper.h>
 #include <win32/Unicode.h>
 
 namespace winpx

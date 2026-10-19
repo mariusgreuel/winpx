@@ -8,7 +8,7 @@
 #include "HttpRequestMessage.h"
 
 #include "HttpError.h"
-#include "Tools.h"
+#include "StringHelper.h"
 
 namespace winpx
 {
