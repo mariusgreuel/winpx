@@ -9,6 +9,35 @@
 
 namespace winpx
 {
+    HttpStatusCategory GetHttpStatusCategory(HttpStatusCode statusCode)
+    {
+        int code = static_cast<int>(statusCode);
+        if (code >= 100 && code < 200)
+        {
+            return HttpStatusCategory::Informational;
+        }
+        else if (code >= 200 && code < 300)
+        {
+            return HttpStatusCategory::Success;
+        }
+        else if (code >= 300 && code < 400)
+        {
+            return HttpStatusCategory::Redirection;
+        }
+        else if (code >= 400 && code < 500)
+        {
+            return HttpStatusCategory::ClientError;
+        }
+        else if (code >= 500 && code < 600)
+        {
+            return HttpStatusCategory::ServerError;
+        }
+        else
+        {
+            return HttpStatusCategory::Unknown;
+        }
+    }
+
     const char* ToReasonPhrase(HttpStatusCode statusCode)
     {
         switch (statusCode)
