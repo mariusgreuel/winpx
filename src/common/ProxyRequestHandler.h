@@ -6,13 +6,13 @@
 #pragma once
 #include "HttpRequestMessage.h"
 #include "HttpResponseMessage.h"
-#include "HttpTools.h"
 #include "ProxyResolver.h"
 #include "ProxyStatistics.h"
+#include "Uri.h"
 
 namespace winpx
 {
-    class ProxyRequestHandler : private HttpTools
+    class ProxyRequestHandler
     {
     public:
         explicit ProxyRequestHandler(const ProxyConfiguration& proxyConfiguration, ProxyResolver& proxyResolver, ProxyStatistics& proxyStatistics);

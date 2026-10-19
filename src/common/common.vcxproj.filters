@@ -27,7 +27,7 @@
     <ClCompile Include="HttpResponseMessage.cpp">
       <Filter>2 Http</Filter>
     </ClCompile>
-    <ClCompile Include="HttpTools.cpp">
+    <ClCompile Include="HttpHelper.cpp">
       <Filter>2 Http</Filter>
     </ClCompile>
     <ClCompile Include="Proxy.cpp">
@@ -135,7 +135,7 @@
     <ClInclude Include="HttpStatusCode.h">
       <Filter>2 Http</Filter>
     </ClInclude>
-    <ClInclude Include="HttpTools.h">
+    <ClInclude Include="HttpHelper.h">
       <Filter>2 Http</Filter>
     </ClInclude>
     <ClInclude Include="Uri.h">

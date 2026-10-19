@@ -8,7 +8,7 @@
 #include "ProxyResolver.h"
 #include "ProxyResolver.tmh"
 
-#include "HttpTools.h"
+#include "HttpHelper.h"
 #include "Tools.h"
 #include "Uri.h"
 #include <win32/Unicode.h>
@@ -88,7 +88,7 @@ namespace winpx
         }
         else if (!systemProxyConfiguration->proxy.empty())
         {
-            Uri proxy(HttpTools::PickProxyFromList(systemProxyConfiguration->proxy, url));
+            Uri proxy(PickProxyFromList(systemProxyConfiguration->proxy, url));
             DoTraceMessage(WppTrace, "Using system proxy '%!sv!:%d' for '%!str!'", proxy.host, proxy.port, url);
             return { proxy.IsEmpty(), proxy.GetHost(), proxy.GetPort() };
         }
@@ -182,7 +182,7 @@ namespace winpx
         }
         else if (proxyInfo.lpszProxy != nullptr)
         {
-            auto proxy = HttpTools::PickProxyFromList(Unicode::ToUtf8(proxyInfo.lpszProxy), url);
+            auto proxy = PickProxyFromList(Unicode::ToUtf8(proxyInfo.lpszProxy), url);
 
             Uri uri(proxy);
             host = uri.GetHost();

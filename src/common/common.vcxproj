@@ -206,7 +206,7 @@
     <ClCompile Include="HttpRequestMessage.cpp" />
     <ClCompile Include="HttpResponseMessage.cpp" />
     <ClCompile Include="HttpStatusCode.cpp" />
-    <ClCompile Include="HttpTools.cpp" />
+    <ClCompile Include="HttpHelper.cpp" />
     <ClCompile Include="HttpWebRequest.cpp" />
     <ClCompile Include="Resources.cpp" />
     <ClCompile Include="Uri.cpp" />
@@ -245,7 +245,7 @@
     <ClInclude Include="NetworkMode.h" />
     <ClInclude Include="ProxyState.h" />
     <ClInclude Include="WebServer.h" />
-    <ClInclude Include="HttpTools.h" />
+    <ClInclude Include="HttpHelper.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="HttpStatusCode.h" />
     <ClInclude Include="Proxy.h" />

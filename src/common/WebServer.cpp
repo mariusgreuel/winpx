@@ -10,6 +10,7 @@
 
 #include "HttpError.h"
 #include "Tools.h"
+#include "Uri.h"
 #include "Version.h"
 
 namespace winpx

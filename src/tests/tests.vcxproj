@@ -139,7 +139,7 @@
     <ClCompile Include="HttpMessageTests.cpp" />
     <ClCompile Include="HttpRequestMessageTests.cpp" />
     <ClCompile Include="HttpResponseMessageTests.cpp" />
-    <ClCompile Include="HttpToolsTests.cpp" />
+    <ClCompile Include="HttpHelperTests.cpp" />
     <ClCompile Include="ProxySystemTests.cpp" />
     <ClCompile Include="ToolsTests.cpp" />
     <ClCompile Include="UnicodeTests.cpp" />

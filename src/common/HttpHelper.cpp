@@ -1,11 +1,11 @@
 //
-// HttpTools.cpp
+// HttpHelper.cpp
 // Copyright (c) 2021 Marius Greuel. All rights reserved.
 //
 
 #include "pch.h"
 
-#include "HttpTools.h"
+#include "HttpHelper.h"
 
 #include "HttpError.h"
 #include "Tools.h"
@@ -14,7 +14,7 @@ namespace winpx
 {
     using namespace std::literals::string_view_literals;
 
-    Uri HttpTools::GetAbsoluteUrl(const HttpRequestMessage& request)
+    Uri GetAbsoluteUrl(const HttpRequestMessage& request)
     {
         Uri target(request.GetRequestUri());
         if (target.IsAbsoluteUri())
@@ -40,7 +40,7 @@ namespace winpx
         }
     }
 
-    bool HttpTools::IsLocalhost(std::string_view host)
+    bool IsLocalhost(std::string_view host)
     {
         return IEquals(host, "localhost"sv) ||
                IEquals(host, "127.0.0.1"sv) ||
@@ -51,7 +51,7 @@ namespace winpx
     // - "proxy1:8080" (global)
     // - "proxy1:8080;proxy2:8080;..." (failover)
     // - "http=proxy1:8080;https=proxy2:8080" (scheme-specific)
-    std::string HttpTools::PickProxyFromList(const std::string& list, std::string_view url)
+    std::string PickProxyFromList(const std::string& list, std::string_view url)
     {
         auto entries = SplitString(list, ';');
         if (entries.size() > 0)
@@ -91,7 +91,7 @@ namespace winpx
         }
     }
 
-    std::string HttpTools::NormalizeCrLf(std::string_view message)
+    std::string NormalizeCrLf(std::string_view message)
     {
         if (message.find_first_of('\n') == 0)
         {

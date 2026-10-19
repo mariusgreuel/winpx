@@ -9,6 +9,7 @@
 #include "ProxyRequestHandler.tmh"
 
 #include "HttpError.h"
+#include "HttpHelper.h"
 #include "ProxyAuthenticationSession.h"
 #include "Tools.h"
 #include "Uri.h"

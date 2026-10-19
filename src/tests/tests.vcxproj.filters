@@ -10,7 +10,7 @@
     <ClCompile Include="HttpResponseMessageTests.cpp">
       <Filter>1 UnitTests</Filter>
     </ClCompile>
-    <ClCompile Include="HttpToolsTests.cpp">
+    <ClCompile Include="HttpHelperTests.cpp">
       <Filter>1 UnitTests</Filter>
     </ClCompile>
     <ClCompile Include="ProxySystemTests.cpp">

@@ -6,7 +6,7 @@
 #include <common/HttpResponseMessage.h>
 
 #include <common/HttpError.h>
-#include <common/HttpTools.h>
+#include <common/HttpHelper.h>
 
 #include <gtest/gtest.h>
 
@@ -20,7 +20,7 @@ namespace UnitTests
     protected:
         void Parse(std::string_view message)
         {
-            auto normalizedMessage = HttpTools::NormalizeCrLf(message);
+            auto normalizedMessage = NormalizeCrLf(message);
             response.Parse(normalizedMessage);
             ASSERT_EQ(normalizedMessage, response.ToString());
         }

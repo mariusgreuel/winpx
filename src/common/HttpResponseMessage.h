@@ -6,11 +6,10 @@
 #pragma once
 #include "HttpMessage.h"
 #include "HttpStatusCode.h"
-#include "HttpTools.h"
 
 namespace winpx
 {
-    class HttpResponseMessage : public HttpMessage, private HttpTools
+    class HttpResponseMessage : public HttpMessage
     {
     public:
         HttpResponseMessage() = default;

@@ -9,6 +9,7 @@
 #include "DialogOptionsStatus.tmh"
 
 #include "OnlineHelp.h"
+#include <common/HttpHelper.h>
 #include <common/HttpProbe.h>
 #include <common/Wsl.h>
 #include <win32/Unicode.h>
@@ -86,8 +87,8 @@ namespace winpx
             }
             else if (!systemProxyConfiguration.proxy.empty())
             {
-                m_httpProxyUrl.Probe(HttpTools::PickProxyFromList(systemProxyConfiguration.proxy, "http:"sv), m_hWnd, m_nWmStatusUpdate);
-                m_httpsProxyUrl.Probe(HttpTools::PickProxyFromList(systemProxyConfiguration.proxy, "https:"sv), m_hWnd, m_nWmStatusUpdate);
+                m_httpProxyUrl.Probe(PickProxyFromList(systemProxyConfiguration.proxy, "http:"sv), m_hWnd, m_nWmStatusUpdate);
+                m_httpsProxyUrl.Probe(PickProxyFromList(systemProxyConfiguration.proxy, "https:"sv), m_hWnd, m_nWmStatusUpdate);
             }
             break;
         }
