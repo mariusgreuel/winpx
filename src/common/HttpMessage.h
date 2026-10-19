@@ -18,9 +18,13 @@ namespace winpx
         HttpMessage() = default;
 
     public:
+        std::string GetBufferLeftover() const;
+
         std::string GetBody() const;
         void SetBody(std::string body);
 
+        uint8_t GetMajorVersion() const;
+        uint8_t GetMinorVersion() const;
         bool IsHttpVersion(uint8_t majorVersion, uint8_t minorVersion) const;
 
         HttpHeaders& GetHeaders();

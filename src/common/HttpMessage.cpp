@@ -12,6 +12,11 @@
 
 namespace winpx
 {
+    std::string HttpMessage::GetBufferLeftover() const
+    {
+        return m_body;
+    }
+
     std::string HttpMessage::GetBody() const
     {
         return m_body;
@@ -20,6 +25,16 @@ namespace winpx
     void HttpMessage::SetBody(std::string body)
     {
         m_body = std::move(body);
+    }
+
+    uint8_t HttpMessage::GetMajorVersion() const
+    {
+        return m_majorVersion;
+    }
+
+    uint8_t HttpMessage::GetMinorVersion() const
+    {
+        return m_minorVersion;
     }
 
     bool HttpMessage::IsHttpVersion(uint8_t majorVersion, uint8_t minorVersion) const

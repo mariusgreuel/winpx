@@ -167,7 +167,7 @@ namespace winpx
 
             asio::ip::tcp::socket remote = co_await ConnectTo(target.host, target.port);
             m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::OK, "Connection Established" });
-            co_await Tunnel(client, remote, request.GetBody(), {});
+            co_await Tunnel(client, remote, request.GetBufferLeftover(), {});
         }
         else
         {
@@ -182,7 +182,7 @@ namespace winpx
                 if (response.GetStatusCode() == HttpStatusCode::OK)
                 {
                     m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::OK, "Connection Established" });
-                    co_await Tunnel(client, upstream, request.GetBody(), response.GetBody());
+                    co_await Tunnel(client, upstream, request.GetBufferLeftover(), response.GetBufferLeftover());
                 }
                 else
                 {
@@ -402,7 +402,7 @@ namespace winpx
 
         try
         {
-            auto storage = message.GetBody();
+            auto storage = message.GetBufferLeftover();
 
             auto contentLength = message.GetHeaders().GetValue("Content-Length"sv);
             auto transferEncoding = message.GetHeaders().GetValue("Transfer-Encoding"sv);
@@ -443,7 +443,7 @@ namespace winpx
 
         try
         {
-            auto storage = message.GetBody();
+            auto storage = message.GetBufferLeftover();
 
             size_t totalBytes = 0;
 
@@ -816,11 +816,11 @@ namespace winpx
     {
         if (auto via = request.GetHeaders().GetValue("Via"sv))
         {
-            return std::format("{}, 1.1 {}", *via, m_proxyId);
+            return std::format("{}, {}.{} {}", *via, request.GetMajorVersion(), request.GetMinorVersion(), m_proxyId);
         }
         else
         {
-            return std::format("1.1 {}", m_proxyId);
+            return std::format("{}.{} {}", request.GetMajorVersion(), request.GetMinorVersion(), m_proxyId);
         }
     }
 
