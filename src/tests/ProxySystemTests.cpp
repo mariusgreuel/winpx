@@ -384,7 +384,7 @@ namespace SystemTests
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetBody(), "get-body");
         EXPECT_EQ(originRequest.GetMethod(), "GET");
-        EXPECT_EQ(originRequest.GetRequestUri(), "/resource");
+        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/resource");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("X-Test"sv), "direct-get");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "close");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
@@ -422,7 +422,7 @@ namespace SystemTests
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::Created);
         EXPECT_EQ(response.GetBody(), "post-body");
         EXPECT_EQ(originRequest.GetMethod(), "POST");
-        EXPECT_EQ(originRequest.GetRequestUri(), "/submit");
+        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/submit");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Content-Type"sv), "application/x-www-form-urlencoded");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "close");
         EXPECT_EQ(originRequest.GetBody(), body);
@@ -454,7 +454,7 @@ namespace SystemTests
         EXPECT_EQ(response.GetHeaders().GetValue("Connection"sv), "close");
         EXPECT_TRUE(response.GetBody().empty());
         EXPECT_EQ(originRequest.GetMethod(), "HEAD");
-        EXPECT_EQ(originRequest.GetRequestUri(), "/metadata");
+        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/metadata");
     }
 
     TEST_F(ProxySystemTest, ProxyGetRequest)
@@ -483,7 +483,7 @@ namespace SystemTests
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetBody(), "get-body");
         EXPECT_EQ(upstreamRequest.GetMethod(), "GET");
-        EXPECT_EQ(upstreamRequest.GetRequestUri(), "http://example.org/resource");
+        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/resource");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("X-Test"sv), "proxy-get");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
@@ -521,7 +521,7 @@ namespace SystemTests
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::Created);
         EXPECT_EQ(response.GetBody(), "post-body");
         EXPECT_EQ(upstreamRequest.GetMethod(), "POST");
-        EXPECT_EQ(upstreamRequest.GetRequestUri(), "http://example.org/submit");
+        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/submit");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Content-Type"sv), "application/x-www-form-urlencoded");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
@@ -555,7 +555,7 @@ namespace SystemTests
         EXPECT_EQ(response.GetHeaders().GetValue("Connection"sv), "close");
         EXPECT_TRUE(response.GetBody().empty());
         EXPECT_EQ(upstreamRequest.GetMethod(), "HEAD");
-        EXPECT_EQ(upstreamRequest.GetRequestUri(), "http://example.org/metadata");
+        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/metadata");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
         EXPECT_FALSE(upstreamRequest.GetHeaders().Contains("Proxy-Connection"sv));
@@ -595,7 +595,7 @@ namespace SystemTests
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetBody(), "chunked-request");
         EXPECT_EQ(originRequest.GetMethod(), "POST");
-        EXPECT_EQ(originRequest.GetRequestUri(), "/upload");
+        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/upload");
         EXPECT_FALSE(originRequest.GetHeaders().Contains("Transfer-Encoding"sv));
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Content-Length"sv), std::to_string(decodedBody.size()));
         EXPECT_EQ(originRequest.GetBody(), decodedBody);
@@ -696,7 +696,7 @@ namespace SystemTests
         upstream.RethrowFailure();
 
         EXPECT_EQ(connectRequest.GetMethod(), "CONNECT");
-        EXPECT_EQ(connectRequest.GetRequestUri(), "secure.example.test:443");
+        EXPECT_EQ(connectRequest.GetRequestUri().ToString(), "secure.example.test:443");
         EXPECT_EQ(connectRequest.GetHeaders().GetValue("Host"sv), "secure.example.test:443");
     }
 
@@ -740,7 +740,7 @@ namespace SystemTests
         EXPECT_FALSE(upstreamRequests[0].GetHeaders().Contains("Proxy-Authorization"sv));
         EXPECT_EQ(upstreamRequests[1].GetBody(), upstreamRequests[0].GetBody());
         EXPECT_EQ(upstreamRequests[1].GetMethod(), "GET");
-        EXPECT_EQ(upstreamRequests[1].GetRequestUri(), "http://example.org/basic");
+        EXPECT_EQ(upstreamRequests[1].GetRequestUri().ToString(), "http://example.org/basic");
         ASSERT_EQ(upstreamRequests[1].GetHeaders().GetValue("Proxy-Authorization"sv), "Basic " + Base64::Encode("test-user:test-password"sv));
     }
 

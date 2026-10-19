@@ -16,7 +16,7 @@ namespace winpx
 
     Uri GetAbsoluteUrl(const HttpRequestMessage& request)
     {
-        Uri target(request.GetRequestUri());
+        const auto& target = request.GetRequestUri();
         if (target.IsAbsoluteUri())
         {
             return target;
@@ -35,7 +35,7 @@ namespace winpx
             }
             else
             {
-                throw HttpError(HttpStatusCode::BadRequest, "Missing Host header.");
+                throw HttpError(HttpStatusCode::BadRequest, "Missing Host header");
             }
         }
     }

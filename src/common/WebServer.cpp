@@ -10,7 +10,6 @@
 
 #include "HttpError.h"
 #include "StringHelper.h"
-#include "Uri.h"
 #include "Version.h"
 
 namespace winpx
@@ -37,7 +36,7 @@ namespace winpx
 
     HttpResponseMessage WebServer::ProcessRequest(const HttpRequestMessage& request)
     {
-        DoTraceMessage(WppTrace, "%!FUNC!: uri='%!str!'", request.GetRequestUri());
+        DoTraceMessage(WppTrace, "%!FUNC!: uri='%!str!'", request.GetRequestUri().ToString());
 
         try
         {
@@ -65,7 +64,7 @@ namespace winpx
 
     HttpResponseMessage WebServer::GetResource(const HttpRequestMessage& request)
     {
-        Uri target(request.GetRequestUri());
+        const auto& target = request.GetRequestUri();
         if (target.path == "/"sv)
         {
             return GetStatusPage();

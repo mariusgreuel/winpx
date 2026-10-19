@@ -32,7 +32,7 @@ namespace UnitTests
     {
         Parse("ABC http://example.com/some/path/file.html HTTP/3.4\r\n\r\n"sv);
         ASSERT_EQ(request.GetMethod(), "ABC");
-        ASSERT_EQ(request.GetRequestUri(), "http://example.com/some/path/file.html");
+        ASSERT_EQ(request.GetRequestUri().ToString(), "http://example.com/some/path/file.html");
         ASSERT_TRUE(request.IsHttpVersion(3, 4));
         ASSERT_FALSE(request.IsHttpVersion(1, 2));
     };
@@ -66,7 +66,7 @@ Proxy-Connection: Keep-Alive
 
 )"sv);
         ASSERT_EQ(request.GetMethod(), "GET");
-        ASSERT_EQ(request.GetRequestUri(), "http://example.com/some/path/file.html");
+        ASSERT_EQ(request.GetRequestUri().ToString(), "http://example.com/some/path/file.html");
         ASSERT_TRUE(request.IsHttpVersion(1, 1));
         ASSERT_EQ(request.GetHeaders().GetValue("Host"sv), "example.com");
         ASSERT_EQ(request.GetHeaders().GetValue("User-Agent"sv), "WinPX/1.2.3");
@@ -87,7 +87,7 @@ Content-Type: application/x-www-form-urlencoded
 
 param1=value1&param2=value2)"sv);
         ASSERT_EQ(request.GetMethod(), "POST");
-        ASSERT_EQ(request.GetRequestUri(), "http://example.com/");
+        ASSERT_EQ(request.GetRequestUri().ToString(), "http://example.com/");
         ASSERT_TRUE(request.IsHttpVersion(1, 1));
         ASSERT_EQ(request.GetHeaders().GetValue("Host"sv), "example.com");
         ASSERT_EQ(request.GetHeaders().GetValue("User-Agent"sv), "WinPX/1.2.3");
@@ -107,7 +107,7 @@ Proxy-Connection: Keep-Alive
 
 )"sv);
         ASSERT_EQ(request.GetMethod(), "CONNECT");
-        ASSERT_EQ(request.GetRequestUri(), "example.com:443");
+        ASSERT_EQ(request.GetRequestUri().ToString(), "example.com:443");
         ASSERT_TRUE(request.IsHttpVersion(1, 1));
         ASSERT_EQ(request.GetHeaders().GetValue("Host"sv), "example.com:443");
         ASSERT_EQ(request.GetHeaders().GetValue("User-Agent"sv), "WinPX/1.2.3");

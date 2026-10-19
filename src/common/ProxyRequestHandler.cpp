@@ -156,7 +156,7 @@ namespace winpx
     {
         DoTraceMessage(WppTrace, "%!FUNC!: head=%!str!", request.GetRedactedHead());
 
-        Uri target(request.GetRequestUri());
+        Uri target = request.GetRequestUri();
         if (target.port == 0)
             target.port = 443;
 
@@ -778,19 +778,8 @@ namespace winpx
 
     bool ProxyRequestHandler::IsRequestToWebServer(const HttpRequestMessage& request) const
     {
-        if (auto host = request.GetHeaders().GetValue("Host"sv))
-        {
-            return IsRequestToWebServer(Uri(*host));
-        }
-        else
-        {
-            return IsRequestToWebServer(request.GetRequestUri());
-        }
-    }
-
-    bool ProxyRequestHandler::IsRequestToWebServer(const Uri& uri) const
-    {
-        return IsLocalhost(uri.host) && uri.port == m_proxyConfiguration.port;
+        const auto& target = request.GetRequestUri();
+        return IsLocalhost(target.host) && target.port == m_proxyConfiguration.port;
     }
 
     bool ProxyRequestHandler::IsAuthenticated(const HttpRequestMessage& request, std::string_view headerName) const

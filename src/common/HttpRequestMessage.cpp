@@ -29,12 +29,12 @@ namespace winpx
         m_method = std::move(method);
     }
 
-    std::string HttpRequestMessage::GetRequestUri() const
+    const Uri& HttpRequestMessage::GetRequestUri() const
     {
         return m_requestUri;
     }
 
-    void HttpRequestMessage::SetRequestUri(std::string requestUri)
+    void HttpRequestMessage::SetRequestUri(Uri requestUri)
     {
         m_requestUri = std::move(requestUri);
     }
@@ -43,7 +43,7 @@ namespace winpx
     {
         return std::format("{} {} HTTP/{}.{}\r\n",
             m_method,
-            m_requestUri,
+            m_requestUri.ToString(),
             m_majorVersion,
             m_minorVersion);
     }

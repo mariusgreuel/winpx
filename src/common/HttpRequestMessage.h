@@ -6,6 +6,8 @@
 #pragma once
 #include "HttpMessage.h"
 
+#include "Uri.h"
+
 namespace winpx
 {
     class HttpRequestMessage : public HttpMessage
@@ -22,8 +24,8 @@ namespace winpx
         std::string GetMethod() const;
         void SetMethod(std::string method);
 
-        std::string GetRequestUri() const;
-        void SetRequestUri(std::string requestUri);
+        const Uri& GetRequestUri() const;
+        void SetRequestUri(Uri requestUri);
 
         std::string GetRequestLine() const;
         std::string GetHead() const;
@@ -39,6 +41,6 @@ namespace winpx
 
     private:
         std::string m_method;
-        std::string m_requestUri;
+        Uri m_requestUri;
     };
 }

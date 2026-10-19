@@ -55,8 +55,6 @@ namespace winpx
         asio::awaitable<size_t> WriteResponse(asio::ip::tcp::socket& socket, HttpResponseMessage response) const;
 
         bool IsRequestToWebServer(const HttpRequestMessage& request) const;
-        bool IsRequestToWebServer(const Uri& uri) const;
-
         bool IsAuthenticated(const HttpRequestMessage& request, std::string_view headerName) const;
         bool IsSentViaThisProxy(const HttpRequestMessage& request) const;
         std::string CreateViaThisProxy(const HttpRequestMessage& request) const;
