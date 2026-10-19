@@ -26,6 +26,7 @@ namespace winpx
         bool Contains(std::string_view name) const;
         std::optional<std::string_view> GetValue(std::string_view name) const;
         std::vector<std::string_view> GetValues(std::string_view name) const;
+        std::vector<std::string_view> GetListValues(std::string_view name) const;
 
         std::string ToString() const;
 

@@ -89,6 +89,37 @@ namespace winpx
         return values;
     }
 
+    std::vector<std::string_view> HttpHeaders::GetListValues(std::string_view name) const
+    {
+        std::vector<std::string_view> values;
+
+        for (const auto& header : m_headers)
+        {
+            if (IEquals(header.name, name))
+            {
+                auto value = std::string_view(header.value);
+
+                size_t start = 0;
+                while (true)
+                {
+                    size_t end = value.find(',', start);
+                    if (end != std::string_view::npos)
+                    {
+                        values.push_back(Trim(value.substr(start, end - start)));
+                        start = end + 1;
+                    }
+                    else
+                    {
+                        values.push_back(Trim(value.substr(start)));
+                        break;
+                    }
+                }
+            }
+        }
+
+        return values;
+    }
+
     std::string HttpHeaders::ToString() const
     {
         std::string result;
