@@ -43,10 +43,16 @@ namespace winpx
             return "Not Modified";
         case HttpStatusCode::UseProxy:
             return "Use Proxy";
+        case HttpStatusCode::TemporaryRedirect:
+            return "Temporary Redirect";
+        case HttpStatusCode::PermanentRedirect:
+            return "Permanent Redirect";
         case HttpStatusCode::BadRequest:
             return "Bad Request";
         case HttpStatusCode::Unauthorized:
             return "Unauthorized";
+        case HttpStatusCode::PaymentRequired:
+            return "Payment Required";
         case HttpStatusCode::Forbidden:
             return "Forbidden";
         case HttpStatusCode::NotFound:
@@ -63,6 +69,26 @@ namespace winpx
             return "Conflict";
         case HttpStatusCode::Gone:
             return "Gone";
+        case HttpStatusCode::LengthRequired:
+            return "Length Required";
+        case HttpStatusCode::PreconditionFailed:
+            return "Precondition Failed";
+        case HttpStatusCode::ContentTooLarge:
+            return "Content Too Large";
+        case HttpStatusCode::UriTooLong:
+            return "URI Too Long";
+        case HttpStatusCode::UnsupportedMediaType:
+            return "Unsupported Media Type";
+        case HttpStatusCode::RangeNotSatisfiable:
+            return "Range Not Satisfiable";
+        case HttpStatusCode::ExpectationFailed:
+            return "Expectation Failed";
+        case HttpStatusCode::UpgradeRequired:
+            return "Upgrade Required";
+        case HttpStatusCode::TooManyRequests:
+            return "Too Many Requests";
+        case HttpStatusCode::RequestHeaderFieldsTooLarge:
+            return "Request Header Fields Too Large";
         case HttpStatusCode::InternalServerError:
             return "Internal Server Error";
         case HttpStatusCode::NotImplemented:
