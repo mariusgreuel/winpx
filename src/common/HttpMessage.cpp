@@ -12,6 +12,39 @@
 
 namespace winpx
 {
+    static bool IsFieldNameChar(char ch)
+    {
+        switch (ch)
+        {
+        case '!':
+        case '#':
+        case '$':
+        case '%':
+        case '&':
+        case '\'':
+        case '*':
+        case '+':
+        case '-':
+        case '.':
+        case '^':
+        case '_':
+        case '`':
+        case '|':
+        case '~':
+            return true;
+        default:
+            return (ch >= '0' && ch <= '9') ||
+                   (ch >= 'A' && ch <= 'Z') ||
+                   (ch >= 'a' && ch <= 'z');
+        }
+    }
+
+    static bool IsFieldValueChar(char ch)
+    {
+        auto uch = static_cast<unsigned char>(ch);
+        return uch == '\t' || (uch >= 0x20 && uch != 0x7F);
+    }
+
     std::string HttpMessage::GetBufferLeftover() const
     {
         return m_body;
@@ -64,14 +97,24 @@ namespace winpx
 
     void HttpMessage::ParseHeader(std::string_view header)
     {
-        auto colon = header.find_first_of(':');
-        if (colon == std::string_view::npos)
+        auto colon = header.find(':');
+        if (colon == 0 || colon == std::string_view::npos)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid header line.");
+            throw HttpError(HttpStatusCode::BadRequest, "Invalid header line");
         }
 
-        auto name = Trim(header.substr(0, colon));
+        auto name = header.substr(0, colon);
+        if (!std::ranges::all_of(name, IsFieldNameChar))
+        {
+            throw HttpError(HttpStatusCode::BadRequest, "Invalid header name");
+        }
+
         auto value = Trim(header.substr(colon + 1));
+        if (!std::ranges::all_of(value, IsFieldValueChar))
+        {
+            throw HttpError(HttpStatusCode::BadRequest, "Invalid header value");
+        }
+
         m_headers.Add(name, value);
     }
 
@@ -80,13 +123,13 @@ namespace winpx
         if (buffer.size() < 8 ||
             ToUpper(buffer[0]) != 'H' || ToUpper(buffer[1]) != 'T' || ToUpper(buffer[2]) != 'T' || ToUpper(buffer[3]) != 'P' || buffer[4] != '/')
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version.");
+            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version");
         }
 
         auto versions = SplitString(buffer.substr(5), '.');
         if (versions.size() != 2)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version.");
+            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version");
         }
 
         try
@@ -96,7 +139,7 @@ namespace winpx
         }
         catch (const std::exception&)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version.");
+            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version");
         }
     }
 
@@ -109,22 +152,22 @@ namespace winpx
     {
         if (offset >= request.size())
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP header.");
+            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP header");
         }
 
         auto lf = request.find_first_of('\n', offset);
         auto cr = request.find_first_of('\r', offset);
         if (lf == std::string_view::npos)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP header.");
+            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP header");
         }
         else if (lf == offset || cr > lf)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Bare LF in HTTP header detected.");
+            throw HttpError(HttpStatusCode::BadRequest, "Bare LF in HTTP header detected");
         }
         else if (cr != lf - 1)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Bare CR in HTTP header detected.");
+            throw HttpError(HttpStatusCode::BadRequest, "Bare CR in HTTP header detected");
         }
 
         line = request.substr(offset, cr - offset);

@@ -54,17 +54,27 @@ namespace UnitTests
 
     TEST_F(HttpMessageTest, ParseHeader)
     {
-        ParseHeader("a:va");
-        ParseHeader(" b : vb ");
+        ParseHeader("a:va"sv);
+        ParseHeader("b: \t vb \t"sv);
         ASSERT_EQ(m_headers.GetValue("a"sv), "va");
         ASSERT_EQ(m_headers.GetValue("b"sv), "vb");
+    };
 
-        ASSERT_THROW(ParseHeader("No Colon"), HttpError);
+    TEST_F(HttpMessageTest, RejectsMalformedFields)
+    {
+        ASSERT_THROW(ParseHeader("No Colon"sv), HttpError);
+        ASSERT_THROW(ParseHeader(": Bad Colon"sv), HttpError);
+        ASSERT_THROW(ParseHeader("Transfer-Encoding : chunked"sv), HttpError);
+        ASSERT_THROW(ParseHeader(" Folded: value"sv), HttpError);
+        ASSERT_THROW(ParseHeader("Bad\tName: value"sv), HttpError);
+        ASSERT_THROW(ParseHeader("Name: va\0lue"sv), HttpError);
+        ASSERT_THROW(ParseHeader("Name: va\x7Flue"sv), HttpError);
+        ParseHeader("X-Obs-Text: \xE4\xF6"sv);
     };
 
     TEST_F(HttpMessageTest, ParseHeaders)
     {
-        ParseHeaders("Host: example.com\r\nUser-Agent: WinPX/1.2.3\r\nAccept: */*\r\n\r\n");
+        ParseHeaders("Host: example.com\r\nUser-Agent: WinPX/1.2.3\r\nAccept: */*\r\n\r\n"sv);
 
         ASSERT_EQ(m_headers.GetValue("Host"sv), "example.com");
         ASSERT_EQ(m_headers.GetValue("User-Agent"sv), "WinPX/1.2.3");
