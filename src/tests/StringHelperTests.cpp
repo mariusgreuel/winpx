@@ -91,11 +91,13 @@ namespace UnitTests
 
     TEST(StringHelperTests, Trim)
     {
-        ASSERT_EQ(Trim(""sv, ' '), ""sv);
-        ASSERT_EQ(Trim("bla"sv, ' '), "bla"sv);
-        ASSERT_EQ(Trim("bla bla"sv, ' '), "bla bla"sv);
-        ASSERT_EQ(Trim(" bla bla "sv, ' '), "bla bla"sv);
-        ASSERT_EQ(Trim("   bla bla   "sv, ' '), "bla bla"sv);
+        ASSERT_EQ(Trim(""sv), ""sv);
+        ASSERT_EQ(Trim("bla"sv), "bla"sv);
+        ASSERT_EQ(Trim("bla bla"sv), "bla bla"sv);
+        ASSERT_EQ(Trim(" bla\tbla "sv), "bla\tbla"sv);
+        ASSERT_EQ(Trim(" \tbla bla \t"sv), "bla bla"sv);
+        ASSERT_EQ(Trim(" \tbla bla \t"sv, " "sv), "\tbla bla \t"sv);
+        ASSERT_EQ(Trim(" \tbla bla \t"sv, "\t"sv), " \tbla bla "sv);
     };
 
     TEST(StringHelperTests, GetSubstring)

@@ -13,6 +13,12 @@
 
 namespace winpx
 {
+    namespace detail
+    {
+        using namespace std::literals::string_view_literals;
+        constexpr std::string_view whitespaceChars = " \t"sv;
+    }
+
     inline char ToLower(char ch)
     {
         return ch >= 'A' && ch <= 'Z' ? ch - 'A' + 'a' : ch;
@@ -54,25 +60,28 @@ namespace winpx
         return ToLower(text).find(ToLower(what)) != std::string::npos;
     }
 
-    inline std::string_view Trim(std::string&& text, char ch) = delete;
-    inline std::string_view Trim(std::string_view text, char ch)
+    inline std::string_view TrimEnd(std::string&& text, std::string_view whitespace) = delete;
+    inline std::string_view TrimEnd(std::string_view text, std::string_view whitespace = detail::whitespaceChars)
     {
-        size_t start = text.find_first_not_of(ch);
-        if (start == std::string_view::npos)
+        using namespace std::literals::string_view_literals;
+
+        size_t end = text.find_last_not_of(whitespace);
+        if (end == std::string_view::npos)
             return {};
 
-        size_t end = text.find_last_not_of(ch);
-        return text.substr(start, end - start + 1);
+        return text.substr(0, end + 1);
     }
 
-    inline std::string_view Trim(std::string&& text, const char* sequence) = delete;
-    inline std::string_view Trim(std::string_view text, const char* sequence = " \t\n\r")
+    inline std::string_view Trim(std::string&& text, std::string_view whitespace) = delete;
+    inline std::string_view Trim(std::string_view text, std::string_view whitespace = detail::whitespaceChars)
     {
-        size_t start = text.find_first_not_of(sequence);
+        using namespace std::literals::string_view_literals;
+
+        size_t start = text.find_first_not_of(whitespace);
         if (start == std::string_view::npos)
             return {};
 
-        size_t end = text.find_last_not_of(sequence);
+        size_t end = text.find_last_not_of(whitespace);
         return text.substr(start, end - start + 1);
     }
 
@@ -122,11 +131,11 @@ namespace winpx
         auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), value, base);
         if (ec == std::errc::result_out_of_range)
         {
-            throw std::out_of_range("Integer is out of range.");
+            throw std::out_of_range("Integer is out of range");
         }
         else if (ec == std::errc::invalid_argument || ptr != text.data() + text.size())
         {
-            throw std::invalid_argument("Invalid integer.");
+            throw std::invalid_argument("Invalid integer");
         }
         else
         {

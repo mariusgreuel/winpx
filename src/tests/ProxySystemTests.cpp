@@ -47,7 +47,7 @@ namespace SystemTests
         if (!authorization || !IStartsWith(*authorization, scheme))
             return {};
 
-        auto token = Trim(authorization->substr(scheme.size()), ' ');
+        auto token = Trim(authorization->substr(scheme.size()));
         return Base64::Decode(token);
     }
 

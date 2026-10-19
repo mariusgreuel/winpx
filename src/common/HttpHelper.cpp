@@ -65,9 +65,9 @@ namespace winpx
                     auto equal = entry.find('=');
                     if (equal != std::string::npos)
                     {
-                        if (IEquals(scheme, Trim(entry.substr(0, equal), " \t")))
+                        if (IEquals(scheme, Trim(entry.substr(0, equal))))
                         {
-                            return std::string{ Trim(entry.substr(equal + 1), " \t") };
+                            return std::string{ Trim(entry.substr(equal + 1)) };
                         }
                     }
                 }
@@ -78,11 +78,11 @@ namespace winpx
             auto equal = entry.find('=');
             if (equal != std::string::npos)
             {
-                return std::string{ Trim(entry.substr(equal + 1), " \t") };
+                return std::string{ Trim(entry.substr(equal + 1)) };
             }
             else
             {
-                return std::string{ Trim(entry, " \t") };
+                return std::string{ Trim(entry) };
             }
         }
         else

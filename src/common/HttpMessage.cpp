@@ -55,8 +55,8 @@ namespace winpx
             throw HttpError(HttpStatusCode::BadRequest, "Invalid header line.");
         }
 
-        auto name = Trim(header.substr(0, colon), " \t");
-        auto value = Trim(header.substr(colon + 1), " \t");
+        auto name = Trim(header.substr(0, colon));
+        auto value = Trim(header.substr(colon + 1));
         m_headers.Add(name, value);
     }
 

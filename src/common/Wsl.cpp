@@ -93,13 +93,13 @@ namespace winpx
         std::string line;
         while (std::getline(stream, line))
         {
-            auto view = Trim(std::string_view(line), " \t");
+            auto view = Trim(std::string_view(line));
             if (view.empty() || view.starts_with(';') || view.starts_with('#'))
                 continue;
 
             if (view.front() == '[' && view.back() == ']')
             {
-                auto section = Trim(view.substr(1, view.size() - 2), " \t");
+                auto section = Trim(view.substr(1, view.size() - 2));
                 inWsl2Section = IEquals(section, "wsl2"sv) || IEquals(section, "experimental"sv);
                 continue;
             }
@@ -109,8 +109,8 @@ namespace winpx
                 auto equal = view.find('=');
                 if (equal != std::string::npos)
                 {
-                    auto key = Trim(view.substr(0, equal), " \t");
-                    auto value = Trim(view.substr(equal + 1), " \t");
+                    auto key = Trim(view.substr(0, equal));
+                    auto value = Trim(view.substr(equal + 1));
                     if (IEquals(key, "networkingMode"sv))
                     {
                         return std::string(value);

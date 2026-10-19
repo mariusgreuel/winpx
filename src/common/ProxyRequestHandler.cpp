@@ -840,17 +840,27 @@ namespace winpx
         size_t chunkSize = 0;
         try
         {
-            auto size = Trim(line.substr(0, line.find(';')));
-            chunkSize = ParseHex<size_t>(size);
+            if (line.ends_with("\r\n"sv))
+            {
+                line.remove_suffix(2);
+            }
+
+            size_t pos = line.find(';');
+            if (pos != std::string_view::npos)
+            {
+                line = TrimEnd(line.substr(0, pos));
+            }
+
+            chunkSize = ParseHex<size_t>(line);
         }
         catch (const std::exception&)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid chunk size.");
+            throw std::runtime_error("Invalid chunk size");
         }
 
         if (chunkSize > maxChunkSize)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Chunk size exceeds maximum allowed value.");
+            throw std::runtime_error("Chunk size exceeds maximum allowed value");
         }
 
         return chunkSize;
