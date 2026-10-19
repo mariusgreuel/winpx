@@ -28,7 +28,6 @@ namespace winpx
 
         bool IsAbsoluteUri() const;
 
-        std::string GetOriginal() const;
         std::string GetScheme() const;
         std::string GetUsernameAndPassword() const;
         std::string GetHostAndPort() const;
@@ -43,6 +42,7 @@ namespace winpx
         void Parse(std::string uri);
 
         std::string_view scheme;
+        std::string_view authority;
         std::string_view usernameAndPassword;
         std::string_view hostAndPort;
         std::string_view pathAndQuery;

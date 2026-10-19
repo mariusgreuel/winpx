@@ -65,11 +65,6 @@ namespace winpx
         return IStartsWith(original, "http://"sv) || IStartsWith(original, "https://"sv);
     }
 
-    std::string Uri::GetOriginal() const
-    {
-        return original;
-    }
-
     std::string Uri::GetScheme() const
     {
         return std::string(scheme);
@@ -139,7 +134,7 @@ namespace winpx
         std::string_view work = original;
 
         size_t pos = work.find("://");
-        if (pos != std::string_view::npos)
+        if (pos != std::string_view::npos && pos == work.find_first_of(":/?#"))
         {
             scheme = work.substr(0, pos);
             work = work.substr(pos + 3);
@@ -149,18 +144,9 @@ namespace winpx
             scheme = {};
         }
 
-        if ((pos = work.find('@')) != std::string_view::npos)
-        {
-            usernameAndPassword = work.substr(0, pos);
-            work = work.substr(pos + 1);
-        }
-        else
-        {
-            usernameAndPassword = {};
-        }
-
         if ((pos = work.find_first_of("/?#")) != std::string_view::npos)
         {
+            authority = work.substr(0, pos);
             hostAndPort = work.substr(0, pos);
             if (work[pos] != '#')
             {
@@ -174,8 +160,19 @@ namespace winpx
         }
         else
         {
-            hostAndPort = work;
+            authority = work;
             pathAndQuery = {};
+        }
+
+        if ((pos = authority.find('@')) != std::string_view::npos)
+        {
+            usernameAndPassword = authority.substr(0, pos);
+            hostAndPort = authority.substr(pos + 1);
+        }
+        else
+        {
+            usernameAndPassword = {};
+            hostAndPort = authority;
         }
 
         if ((pos = usernameAndPassword.find(':')) != std::string_view::npos)

@@ -11,6 +11,34 @@ namespace UnitTests
 {
     using namespace winpx;
 
+    TEST(UriTests, AuthorityEndsBeforePathAndQuery)
+    {
+        Uri absolute1("http://good.example/?@other.example/");
+        EXPECT_EQ(absolute1.host, "good.example");
+        EXPECT_EQ(absolute1.scheme, "http");
+        EXPECT_TRUE(absolute1.usernameAndPassword.empty());
+
+        Uri absolute2("http://good.example/path@other.example/");
+        EXPECT_EQ(absolute2.host, "good.example");
+        EXPECT_EQ(absolute2.scheme, "http");
+        EXPECT_TRUE(absolute2.usernameAndPassword.empty());
+
+        Uri absolute3("http://good.example/?next=http://other.example/");
+        EXPECT_EQ(absolute3.host, "good.example");
+        EXPECT_EQ(absolute3.scheme, "http");
+        EXPECT_TRUE(absolute3.usernameAndPassword.empty());
+
+        Uri relative("/path?next=http://other.example/");
+        EXPECT_TRUE(relative.scheme.empty());
+        EXPECT_TRUE(relative.host.empty());
+        EXPECT_EQ(relative.GetPathAndQuery(), "/path?next=http://other.example/");
+
+        Uri proxy("http://user:password@proxy.example:8080/?@other.example");
+        EXPECT_EQ(proxy.username, "user");
+        EXPECT_EQ(proxy.password, "password");
+        EXPECT_EQ(proxy.host, "proxy.example");
+    };
+
     TEST(UriTests, DefaultPort)
     {
         Uri uri("example.com");
