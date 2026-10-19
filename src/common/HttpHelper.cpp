@@ -117,4 +117,28 @@ namespace winpx
         return result;
     }
 
+    std::string RedactHead(std::string head)
+    {
+#ifndef _DEBUG
+        const auto redactHeaderEndingWith = [&](std::string_view endsWith) {
+            const std::string find = std::string(endsWith) + ":";
+            const std::string replace = find + " [REDACTED]";
+
+            size_t offset = 0;
+            size_t start;
+            while ((start = head.find(find, offset)) != std::string::npos)
+            {
+                auto end = head.find("\r\n", start);
+                auto length = end != std::string::npos ? end - start : std::string::npos;
+                head.replace(start, length, replace);
+                offset = start + replace.size();
+            }
+        };
+
+        redactHeaderEndingWith("Cookie"sv);
+        redactHeaderEndingWith("Authorization"sv);
+        redactHeaderEndingWith("Api-Key"sv);
+#endif
+        return std::string(Trim(head, " \t\n\r"sv));
+    }
 }

@@ -27,6 +27,7 @@ namespace winpx
 
         std::string GetRequestLine() const;
         std::string GetHead() const;
+        std::string GetRedactedHead() const;
         std::string ToString() const;
 
         void Parse(std::string_view message);

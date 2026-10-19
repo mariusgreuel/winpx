@@ -154,7 +154,7 @@ namespace winpx
 
     asio::awaitable<void> ProxyRequestHandler::HandleConnectRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request)
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!: request='%!str!'", request.GetRequestLine());
+        DoTraceMessage(WppTrace, "%!FUNC!: head=%!str!", request.GetRedactedHead());
 
         Uri target(request.GetRequestUri());
         if (target.port == 0)
@@ -199,7 +199,7 @@ namespace winpx
 
     asio::awaitable<void> ProxyRequestHandler::HandleStandardRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request)
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!: request='%!str!'", request.GetRequestLine());
+        DoTraceMessage(WppTrace, "%!FUNC!: head=%!str!", request.GetRedactedHead());
 
         Uri target = GetAbsoluteUrl(request);
 

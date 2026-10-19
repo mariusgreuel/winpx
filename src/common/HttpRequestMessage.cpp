@@ -8,6 +8,7 @@
 #include "HttpRequestMessage.h"
 
 #include "HttpError.h"
+#include "HttpHelper.h"
 #include "StringHelper.h"
 
 namespace winpx
@@ -50,6 +51,11 @@ namespace winpx
     std::string HttpRequestMessage::GetHead() const
     {
         return GetRequestLine() + m_headers.ToString() + "\r\n";
+    }
+
+    std::string HttpRequestMessage::GetRedactedHead() const
+    {
+        return RedactHead(GetHead());
     }
 
     std::string HttpRequestMessage::ToString() const
