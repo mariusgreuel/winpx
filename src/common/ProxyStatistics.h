@@ -11,6 +11,7 @@ namespace winpx
     {
         std::string state;
         std::string duration;
+        std::atomic_size_t requests;
         std::atomic_size_t errors;
         std::atomic_size_t activeConnections;
         std::atomic_size_t totalConnections;

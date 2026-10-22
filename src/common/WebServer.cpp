@@ -42,7 +42,9 @@ namespace winpx
         {
             if (IEquals(request.GetMethod(), "GET"sv))
             {
-                return GetResource(request);
+                auto response = GetResource(request);
+                response.GetHeaders().Add("Content-Length"sv, std::to_string(response.GetBody().size()));
+                return response;
             }
             else if (IEquals(request.GetMethod(), "HEAD"sv))
             {
@@ -99,10 +101,11 @@ namespace winpx
 </head>
 <body>
     <header>
-        <h1>WinPX V{}.{}.{}</h1>
+        <h1>WinPX v{}.{}.{}</h1>
     </header>
     <main>
         <h2>Status</h2>
+        <p>Requests: {}</p>
         <p>Active client connections: {}</p>
         <p>Total client connections: {}</p>
         <p>Total client bytes: {} sent, {} received</p>
@@ -115,6 +118,7 @@ namespace winpx
 </html>
 )",
             VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
+            m_proxyStatistics.requests.load(),
             m_proxyStatistics.activeConnections.load(),
             m_proxyStatistics.totalConnections.load(),
             m_proxyStatistics.totalClientBytesSent.load(),

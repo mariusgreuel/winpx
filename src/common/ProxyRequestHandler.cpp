@@ -49,6 +49,8 @@ namespace winpx
 
         std::optional<HttpResponseMessage> errorResponse;
 
+        m_proxyStatistics.requests++;
+
         try
         {
             std::string message;
