@@ -6,6 +6,6 @@
 #pragma once
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 0
-#define VERSION_PATCH 40
+#define VERSION_MINOR 1
+#define VERSION_PATCH 46
 #define VERSION_QFE 0
