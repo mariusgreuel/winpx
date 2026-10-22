@@ -13,6 +13,8 @@
 
 namespace winpx
 {
+    using namespace std::literals::string_view_literals;
+
     HttpResponseMessage::HttpResponseMessage(HttpStatusCode statusCode, std::optional<std::string> reasonPhrase) :
         m_statusCode(statusCode),
         m_reasonPhrase(std::move(reasonPhrase))
@@ -31,9 +33,8 @@ namespace winpx
 
     std::string HttpResponseMessage::GetStatusLine() const
     {
-        return std::format("HTTP/{}.{} {} {}\r\n",
-            m_majorVersion,
-            m_minorVersion,
+        return std::format("HTTP/{} {} {}\r\n",
+            m_version == 10 ? "1.0"sv : "1.1"sv,
             static_cast<uint32_t>(m_statusCode),
             GetReasonPhrase());
     }

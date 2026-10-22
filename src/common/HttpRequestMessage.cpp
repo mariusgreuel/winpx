@@ -13,6 +13,8 @@
 
 namespace winpx
 {
+    using namespace std::literals::string_view_literals;
+
     HttpRequestMessage::HttpRequestMessage(std::string method, std::string requestUri) :
         m_method(std::move(method)),
         m_requestUri(std::move(requestUri))
@@ -41,11 +43,10 @@ namespace winpx
 
     std::string HttpRequestMessage::GetRequestLine() const
     {
-        return std::format("{} {} HTTP/{}.{}\r\n",
+        return std::format("{} {} HTTP/{}\r\n",
             m_method,
             m_requestUri.ToString(),
-            m_majorVersion,
-            m_minorVersion);
+            m_version == 10 ? "1.0"sv : "1.1"sv);
     }
 
     std::string HttpRequestMessage::GetHead() const

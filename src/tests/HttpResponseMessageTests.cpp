@@ -38,7 +38,7 @@ Content-Type: text/html; charset=utf-8
 
 <html></html>
 )"sv);
-        ASSERT_TRUE(response.IsHttpVersion(1, 1));
+        ASSERT_EQ(response.GetVersion(), 11);
         ASSERT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         ASSERT_EQ(response.GetReasonPhrase(), "OK");
         ASSERT_EQ(response.GetHeaders().GetValue("Server"sv), "Apache/2.4.1 (Unix)");

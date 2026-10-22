@@ -12,6 +12,8 @@
 
 namespace winpx
 {
+    using namespace std::literals::string_view_literals;
+
     static bool IsFieldNameChar(char ch)
     {
         switch (ch)
@@ -60,19 +62,9 @@ namespace winpx
         m_body = std::move(body);
     }
 
-    uint8_t HttpMessage::GetMajorVersion() const
+    uint8_t HttpMessage::GetVersion() const
     {
-        return m_majorVersion;
-    }
-
-    uint8_t HttpMessage::GetMinorVersion() const
-    {
-        return m_minorVersion;
-    }
-
-    bool HttpMessage::IsHttpVersion(uint8_t majorVersion, uint8_t minorVersion) const
-    {
-        return m_majorVersion == majorVersion && m_minorVersion == minorVersion;
+        return m_version;
     }
 
     HttpHeaders& HttpMessage::GetHeaders()
@@ -120,27 +112,20 @@ namespace winpx
 
     void HttpMessage::ParseHttpVersion(std::string_view buffer)
     {
-        if (buffer.size() < 8 ||
-            ToUpper(buffer[0]) != 'H' || ToUpper(buffer[1]) != 'T' || ToUpper(buffer[2]) != 'T' || ToUpper(buffer[3]) != 'P' || buffer[4] != '/')
+        if (buffer.size() != 8 ||
+            buffer[0] != 'H' ||
+            buffer[1] != 'T' ||
+            buffer[2] != 'T' ||
+            buffer[3] != 'P' ||
+            buffer[4] != '/' ||
+            buffer[5] != '1' ||
+            buffer[6] != '.' ||
+            (buffer[7] != '0' && buffer[7] != '1'))
         {
             throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version");
         }
 
-        auto versions = SplitString(buffer.substr(5), '.');
-        if (versions.size() != 2)
-        {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version");
-        }
-
-        try
-        {
-            m_majorVersion = ParseDec<uint8_t>(versions[0]);
-            m_minorVersion = ParseDec<uint8_t>(versions[1]);
-        }
-        catch (const std::exception&)
-        {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version");
-        }
+        m_version = buffer[7] == '0' ? 10 : 11;
     }
 
     std::tuple<std::string, std::string> HttpMessage::SplitMessage(std::string_view message, size_t headSize)

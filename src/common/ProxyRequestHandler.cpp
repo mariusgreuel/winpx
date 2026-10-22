@@ -816,11 +816,11 @@ namespace winpx
     {
         if (auto via = request.GetHeaders().GetValue("Via"sv))
         {
-            return std::format("{}, {}.{} {}", *via, request.GetMajorVersion(), request.GetMinorVersion(), m_proxyId);
+            return std::format("{}, {} {}", *via, request.GetVersion() == 10 ? "1.0"sv : "1.1"sv, m_proxyId);
         }
         else
         {
-            return std::format("{}.{} {}", request.GetMajorVersion(), request.GetMinorVersion(), m_proxyId);
+            return std::format("{} {}", request.GetVersion() == 10 ? "1.0"sv : "1.1"sv, m_proxyId);
         }
     }
 

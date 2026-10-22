@@ -23,9 +23,7 @@ namespace winpx
         std::string GetBody() const;
         void SetBody(std::string body);
 
-        uint8_t GetMajorVersion() const;
-        uint8_t GetMinorVersion() const;
-        bool IsHttpVersion(uint8_t majorVersion, uint8_t minorVersion) const;
+        uint8_t GetVersion() const;
 
         HttpHeaders& GetHeaders();
         const HttpHeaders& GetHeaders() const;
@@ -38,8 +36,7 @@ namespace winpx
         static bool GetHeaderLine(std::string_view request, size_t& offset, std::string_view& line);
 
     protected:
-        uint8_t m_majorVersion = 1;
-        uint8_t m_minorVersion = 1;
+        uint8_t m_version = 11;
         HttpHeaders m_headers;
         std::string m_body;
     };

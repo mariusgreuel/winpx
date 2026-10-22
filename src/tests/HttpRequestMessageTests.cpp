@@ -30,11 +30,10 @@ namespace UnitTests
 
     TEST_F(HttpRequestMessageTest, ParsesRequestLine)
     {
-        Parse("ABC http://example.com/some/path/file.html HTTP/3.4\r\n\r\n"sv);
+        Parse("ABC http://example.com/some/path/file.html HTTP/1.1\r\n\r\n"sv);
         ASSERT_EQ(request.GetMethod(), "ABC");
         ASSERT_EQ(request.GetRequestUri().ToString(), "http://example.com/some/path/file.html");
-        ASSERT_TRUE(request.IsHttpVersion(3, 4));
-        ASSERT_FALSE(request.IsHttpVersion(1, 2));
+        ASSERT_EQ(request.GetVersion(), 11);
     };
 
     TEST_F(HttpRequestMessageTest, ParsesRequestLineNoHeader)
@@ -67,7 +66,7 @@ Proxy-Connection: Keep-Alive
 )"sv);
         ASSERT_EQ(request.GetMethod(), "GET");
         ASSERT_EQ(request.GetRequestUri().ToString(), "http://example.com/some/path/file.html");
-        ASSERT_TRUE(request.IsHttpVersion(1, 1));
+        ASSERT_EQ(request.GetVersion(), 11);
         ASSERT_EQ(request.GetHeaders().GetValue("Host"sv), "example.com");
         ASSERT_EQ(request.GetHeaders().GetValue("User-Agent"sv), "WinPX/1.2.3");
         ASSERT_EQ(request.GetHeaders().GetValue("Accept"sv), "*/*");
@@ -88,7 +87,7 @@ Content-Type: application/x-www-form-urlencoded
 param1=value1&param2=value2)"sv);
         ASSERT_EQ(request.GetMethod(), "POST");
         ASSERT_EQ(request.GetRequestUri().ToString(), "http://example.com/");
-        ASSERT_TRUE(request.IsHttpVersion(1, 1));
+        ASSERT_EQ(request.GetVersion(), 11);
         ASSERT_EQ(request.GetHeaders().GetValue("Host"sv), "example.com");
         ASSERT_EQ(request.GetHeaders().GetValue("User-Agent"sv), "WinPX/1.2.3");
         ASSERT_EQ(request.GetHeaders().GetValue("Accept"sv), "*/*");
@@ -108,7 +107,7 @@ Proxy-Connection: Keep-Alive
 )"sv);
         ASSERT_EQ(request.GetMethod(), "CONNECT");
         ASSERT_EQ(request.GetRequestUri().ToString(), "example.com:443");
-        ASSERT_TRUE(request.IsHttpVersion(1, 1));
+        ASSERT_EQ(request.GetVersion(), 11);
         ASSERT_EQ(request.GetHeaders().GetValue("Host"sv), "example.com:443");
         ASSERT_EQ(request.GetHeaders().GetValue("User-Agent"sv), "WinPX/1.2.3");
         ASSERT_EQ(request.GetHeaders().GetValue("Proxy-Connection"sv), "Keep-Alive");
