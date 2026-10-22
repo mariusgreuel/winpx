@@ -92,19 +92,19 @@ namespace winpx
         auto colon = header.find(':');
         if (colon == 0 || colon == std::string_view::npos)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid header line");
+            throw std::runtime_error("Invalid header line");
         }
 
         auto name = header.substr(0, colon);
         if (!std::ranges::all_of(name, IsFieldNameChar))
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid header name");
+            throw std::runtime_error("Invalid header name");
         }
 
         auto value = Trim(header.substr(colon + 1));
         if (!std::ranges::all_of(value, IsFieldValueChar))
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid header value");
+            throw std::runtime_error("Invalid header value");
         }
 
         m_headers.Add(name, value);
@@ -122,7 +122,7 @@ namespace winpx
             buffer[6] != '.' ||
             (buffer[7] != '0' && buffer[7] != '1'))
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP version");
+            throw std::runtime_error("Invalid HTTP version");
         }
 
         m_version = buffer[7] == '0' ? 10 : 11;
@@ -137,22 +137,22 @@ namespace winpx
     {
         if (offset >= request.size())
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP header");
+            throw std::runtime_error("Invalid HTTP header");
         }
 
         auto lf = request.find_first_of('\n', offset);
         auto cr = request.find_first_of('\r', offset);
         if (lf == std::string_view::npos)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Invalid HTTP header");
+            throw std::runtime_error("Invalid HTTP header");
         }
         else if (lf == offset || cr > lf)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Bare LF in HTTP header detected");
+            throw std::runtime_error("Bare LF in HTTP header detected");
         }
         else if (cr != lf - 1)
         {
-            throw HttpError(HttpStatusCode::BadRequest, "Bare CR in HTTP header detected");
+            throw std::runtime_error("Bare CR in HTTP header detected");
         }
 
         line = request.substr(offset, cr - offset);

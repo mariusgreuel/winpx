@@ -7,7 +7,6 @@
 
 #include "HttpResponseMessage.h"
 
-#include "HttpError.h"
 #include "HttpHelper.h"
 #include "StringHelper.h"
 
@@ -59,7 +58,7 @@ namespace winpx
         auto headEnd = message.find("\r\n\r\n");
         if (headEnd == std::string::npos)
         {
-            throw HttpError(HttpStatusCode::BadRequest);
+            throw std::runtime_error("Invalid HTTP message.");
         }
 
         Parse(message, headEnd + 4);
@@ -90,16 +89,16 @@ namespace winpx
 
         std::string_view httpVersion;
         if (!GetSubstring(buffer, offset, httpVersion, ' '))
-            throw HttpError(HttpStatusCode::InternalServerError, "Missing HTTP version.");
+            throw std::runtime_error("Missing HTTP version.");
 
         std::string_view statusCode;
         if (!GetSubstring(buffer, offset, statusCode, ' '))
-            throw HttpError(HttpStatusCode::InternalServerError, "Missing HTTP status code.");
+            throw std::runtime_error("Missing HTTP status code.");
 
         ParseHttpVersion(httpVersion);
 
         if (statusCode.size() != 3)
-            throw HttpError(HttpStatusCode::InternalServerError, "Invalid HTTP status code.");
+            throw std::runtime_error("Invalid HTTP status code.");
 
         m_statusCode = static_cast<HttpStatusCode>(ParseDec(statusCode));
         m_reasonPhrase = buffer.substr(offset);

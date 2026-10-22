@@ -5,8 +5,6 @@
 
 #include <common/HttpMessage.h>
 
-#include <common/HttpError.h>
-
 #include <gtest/gtest.h>
 
 namespace UnitTests
@@ -32,27 +30,27 @@ namespace UnitTests
         }
     };
 
-    TEST_F(HttpMessageTest, GetHeaderLine)
+    TEST_F(HttpMessageTest, GetHeaderLine_ParsesHeaderLines)
     {
         ASSERT_EQ(GetHeaderLines("\r\n"sv), std::vector<std::string>{});
         ASSERT_EQ(GetHeaderLines("Line1\r\n\r\n"sv), (std::vector<std::string>{ "Line1" }));
         ASSERT_EQ(GetHeaderLines("Line1\r\nLine2\r\nLine3\r\n\r\nBla\rBla\nBla"sv), (std::vector<std::string>{ "Line1", "Line2", "Line3" }));
     };
 
-    TEST_F(HttpMessageTest, RejectsInvalidHeaderLines)
+    TEST_F(HttpMessageTest, GetHeaderLine_RejectsInvalidHeaderLines)
     {
-        ASSERT_THROW(GetHeaderLines(""), HttpError);
-        ASSERT_THROW(GetHeaderLines("\r"), HttpError);
-        ASSERT_THROW(GetHeaderLines("\n"), HttpError);
-        ASSERT_THROW(GetHeaderLines("\n\r"), HttpError);
-        ASSERT_THROW(GetHeaderLines("Line1\r\n"sv), HttpError);
-        ASSERT_THROW(GetHeaderLines("Line1\r\r\n"sv), HttpError);
-        ASSERT_THROW(GetHeaderLines("Line1\n\r\n"sv), HttpError);
-        ASSERT_THROW(GetHeaderLines("Line\n1\r\n\r\n"sv), HttpError);
-        ASSERT_THROW(GetHeaderLines("Line\r1\r\n\r\n"sv), HttpError);
+        ASSERT_THROW(GetHeaderLines(""sv), std::runtime_error);
+        ASSERT_THROW(GetHeaderLines("\r"sv), std::runtime_error);
+        ASSERT_THROW(GetHeaderLines("\n"sv), std::runtime_error);
+        ASSERT_THROW(GetHeaderLines("\n\r"sv), std::runtime_error);
+        ASSERT_THROW(GetHeaderLines("Line1\r\n"sv), std::runtime_error);
+        ASSERT_THROW(GetHeaderLines("Line1\r\r\n"sv), std::runtime_error);
+        ASSERT_THROW(GetHeaderLines("Line1\n\r\n"sv), std::runtime_error);
+        ASSERT_THROW(GetHeaderLines("Line\n1\r\n\r\n"sv), std::runtime_error);
+        ASSERT_THROW(GetHeaderLines("Line\r1\r\n\r\n"sv), std::runtime_error);
     };
 
-    TEST_F(HttpMessageTest, ParseHeader)
+    TEST_F(HttpMessageTest, ParseHeader_ParsesHeader)
     {
         ParseHeader("a:va"sv);
         ParseHeader("b: \t vb \t"sv);
@@ -60,19 +58,19 @@ namespace UnitTests
         ASSERT_EQ(m_headers.GetValue("b"sv), "vb");
     };
 
-    TEST_F(HttpMessageTest, RejectsMalformedFields)
+    TEST_F(HttpMessageTest, ParseHeader_RejectsMalformedFields)
     {
-        ASSERT_THROW(ParseHeader("No Colon"sv), HttpError);
-        ASSERT_THROW(ParseHeader(": Bad Colon"sv), HttpError);
-        ASSERT_THROW(ParseHeader("Transfer-Encoding : chunked"sv), HttpError);
-        ASSERT_THROW(ParseHeader(" Folded: value"sv), HttpError);
-        ASSERT_THROW(ParseHeader("Bad\tName: value"sv), HttpError);
-        ASSERT_THROW(ParseHeader("Name: va\0lue"sv), HttpError);
-        ASSERT_THROW(ParseHeader("Name: va\x7Flue"sv), HttpError);
+        ASSERT_THROW(ParseHeader("No Colon"sv), std::runtime_error);
+        ASSERT_THROW(ParseHeader(": Bad Colon"sv), std::runtime_error);
+        ASSERT_THROW(ParseHeader("Transfer-Encoding : chunked"sv), std::runtime_error);
+        ASSERT_THROW(ParseHeader(" Folded: value"sv), std::runtime_error);
+        ASSERT_THROW(ParseHeader("Bad\tName: value"sv), std::runtime_error);
+        ASSERT_THROW(ParseHeader("Name: va\0lue"sv), std::runtime_error);
+        ASSERT_THROW(ParseHeader("Name: va\x7Flue"sv), std::runtime_error);
         ParseHeader("X-Obs-Text: \xE4\xF6"sv);
     };
 
-    TEST_F(HttpMessageTest, ParseHeaders)
+    TEST_F(HttpMessageTest, ParseHeaders_ParsesHeaders)
     {
         ParseHeaders("Host: example.com\r\nUser-Agent: WinPX/1.2.3\r\nAccept: */*\r\n\r\n"sv);
 

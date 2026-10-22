@@ -6,7 +6,6 @@
 #include <common/HttpResponseMessage.h>
 
 #include "TestHelpers.h"
-#include <common/HttpError.h>
 
 #include <gtest/gtest.h>
 
@@ -22,14 +21,14 @@ namespace UnitTests
         void Parse(std::string_view message)
         {
             auto normalizedMessage = NormalizeCrLf(message);
-            response.Parse(normalizedMessage);
-            ASSERT_EQ(normalizedMessage, response.ToString());
+            m_response.Parse(normalizedMessage);
+            ASSERT_EQ(normalizedMessage, m_response.ToString());
         }
 
-        HttpResponseMessage response;
+        HttpResponseMessage m_response;
     };
 
-    TEST_F(HttpResponseMessageTest, ParsesMessage)
+    TEST_F(HttpResponseMessageTest, Parse_ParsesMessage)
     {
         Parse(R"(
 HTTP/1.1 200 OK
@@ -39,18 +38,18 @@ Content-Type: text/html; charset=utf-8
 
 <html></html>
 )"sv);
-        ASSERT_EQ(response.GetVersion(), 11);
-        ASSERT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
-        ASSERT_EQ(response.GetReasonPhrase(), "OK");
-        ASSERT_EQ(response.GetHeaders().GetValue("Server"sv), "Apache/2.4.1 (Unix)");
-        ASSERT_EQ(response.GetHeaders().GetValue("Content-Length"sv), "15");
-        ASSERT_EQ(response.GetHeaders().GetValue("Content-Type"sv), "text/html; charset=utf-8");
-        ASSERT_EQ(response.GetBody(), "<html></html>\r\n");
+        ASSERT_EQ(m_response.GetVersion(), 11);
+        ASSERT_EQ(m_response.GetStatusCode(), HttpStatusCode::OK);
+        ASSERT_EQ(m_response.GetReasonPhrase(), "OK");
+        ASSERT_EQ(m_response.GetHeaders().GetValue("Server"sv), "Apache/2.4.1 (Unix)");
+        ASSERT_EQ(m_response.GetHeaders().GetValue("Content-Length"sv), "15");
+        ASSERT_EQ(m_response.GetHeaders().GetValue("Content-Type"sv), "text/html; charset=utf-8");
+        ASSERT_EQ(m_response.GetBody(), "<html></html>\r\n");
     };
 
-    TEST_F(HttpResponseMessageTest, RejectsMalformedStatusCode)
+    TEST_F(HttpResponseMessageTest, Parse_RejectsMalformedStatusCode)
     {
-        ASSERT_THROW(Parse("HTTP/1.1 20 OK\r\n\r\n"), HttpError);
-        ASSERT_THROW(Parse("HTTP/1.1 200x OK\r\n\r\n"), HttpError);
+        ASSERT_THROW(Parse("HTTP/1.1 20 OK\r\n\r\n"), std::runtime_error);
+        ASSERT_THROW(Parse("HTTP/1.1 200x OK\r\n\r\n"), std::runtime_error);
     };
 }
