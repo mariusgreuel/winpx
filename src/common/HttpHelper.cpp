@@ -91,32 +91,6 @@ namespace winpx
         }
     }
 
-    std::string NormalizeCrLf(std::string_view message)
-    {
-        if (message.find_first_of('\n') == 0)
-        {
-            message = message.substr(1);
-        }
-
-        std::string result(message);
-
-        size_t pos = 0;
-        while ((pos = result.find('\n', pos)) != std::string::npos)
-        {
-            if (pos == 0 || result[pos - 1] != '\r')
-            {
-                result.insert(pos, "\r");
-                pos += 2;
-            }
-            else
-            {
-                pos += 1;
-            }
-        }
-
-        return result;
-    }
-
     std::string RedactHead(std::string head)
     {
 #ifndef _DEBUG

@@ -46,4 +46,7 @@
       <UniqueIdentifier>{a59cf8db-b15d-4a8f-b304-3ec197cc5623}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TestHelpers.h" />
+  </ItemGroup>
 </Project>

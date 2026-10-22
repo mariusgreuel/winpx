@@ -5,6 +5,7 @@
 
 #include <common/pch.h>
 
+#include "TestHelpers.h"
 #include <common/Proxy.h>
 #include <common/StringHelper.h>
 #include <win32/Base64.h>
@@ -13,26 +14,14 @@
 
 namespace SystemTests
 {
-    using namespace std::literals::string_view_literals;
-    using namespace std::chrono_literals;
     using namespace win32;
     using namespace winpx;
+    using namespace winpx::tests;
+    using namespace std::literals::string_view_literals;
+    using namespace std::chrono_literals;
     using asio::ip::tcp;
 
     static constexpr size_t largeChunkSize = 0x11000;
-
-    static std::string MakeChunkedBody(const std::vector<std::string_view>& chunks)
-    {
-        std::string result;
-
-        for (const auto& chunk : chunks)
-        {
-            result += std::format("{:X}\r\n{}\r\n", chunk.size(), chunk);
-        }
-
-        result += "0\r\n\r\n";
-        return result;
-    }
 
     static uint16_t ReserveLoopbackPort()
     {

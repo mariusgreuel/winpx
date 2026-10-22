@@ -5,14 +5,15 @@
 
 #include <common/HttpRequestMessage.h>
 
+#include "TestHelpers.h"
 #include <common/HttpError.h>
-#include <common/HttpHelper.h>
 
 #include <gtest/gtest.h>
 
 namespace UnitTests
 {
     using namespace winpx;
+    using namespace winpx::tests;
     using namespace std::literals::string_view_literals;
 
     class HttpRequestMessageTest : public testing::Test
