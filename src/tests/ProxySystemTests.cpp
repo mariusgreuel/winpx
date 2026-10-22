@@ -9,6 +9,7 @@
 #include <common/Proxy.h>
 #include <common/StringHelper.h>
 #include <win32/Base64.h>
+#include <win32/WppTracing.h>
 
 #include <gtest/gtest.h>
 
@@ -22,6 +23,8 @@ namespace SystemTests
     using asio::ip::tcp;
 
     static constexpr size_t largeChunkSize = 0x11000;
+
+    static WppTracing wpp;
 
     static uint16_t ReserveLoopbackPort()
     {
@@ -40,30 +43,100 @@ namespace SystemTests
         return Base64::Decode(token);
     }
 
+    static std::optional<std::string_view> GetHeaderValue(std::string_view head, std::string_view name)
+    {
+        auto position = head.find(name);
+        if (position == std::string::npos)
+            return std::nullopt;
+
+        position += name.size();
+        auto end = head.find("\r\n", position);
+        return Trim(head.substr(position, end - position));
+    }
+
+    static bool IsChunked(std::string_view head)
+    {
+        auto transferEncoding = GetHeaderValue(head, "Transfer-Encoding:"sv);
+        return transferEncoding && *transferEncoding == "chunked"sv;
+    }
+
     static size_t GetContentLength(std::string_view head)
     {
-        constexpr std::string_view headerName = "Content-Length:"sv;
-        auto position = head.find(headerName);
-        if (position == std::string_view::npos)
-            return 0;
+        auto contentLength = GetHeaderValue(head, "Content-Length:"sv);
+        return contentLength ? ParseDec<size_t>(*contentLength) : 0;
+    }
 
-        position += headerName.size();
-        auto end = head.find("\r\n", position);
-        return static_cast<size_t>(std::stoull(std::string(head.substr(position, end - position))));
+    static std::string ReadData(tcp::socket& socket, std::string& buffer, size_t length)
+    {
+        if (buffer.size() < length)
+        {
+            asio::read(socket, asio::dynamic_buffer(buffer), asio::transfer_exactly(length - buffer.size()));
+        }
+
+        auto data = buffer.substr(0, length);
+        buffer.erase(0, length);
+        return data;
+    }
+
+    static std::string ReadChunkedData(tcp::socket& socket, std::string& buffer)
+    {
+        const auto readLine = [&socket, &buffer]() {
+            auto lineSize = asio::read_until(socket, asio::dynamic_buffer(buffer), "\r\n"sv);
+            auto line = buffer.substr(0, lineSize - 2);
+            buffer.erase(0, lineSize);
+            return line;
+        };
+
+        std::string result;
+
+        while (true)
+        {
+            auto sizeLine = readLine();
+            result += sizeLine + "\r\n";
+
+            auto chunkSize = ParseHex<size_t>(Trim(std::string_view(sizeLine).substr(0, sizeLine.find(';'))));
+            if (chunkSize == 0)
+                break;
+
+            result += ReadData(socket, buffer, chunkSize);
+
+            if (!readLine().empty())
+            {
+                throw std::runtime_error("Missing CRLF after chunk data.");
+            }
+
+            result += "\r\n";
+        }
+
+        while (true)
+        {
+            auto sizeLine = readLine();
+            result += sizeLine + "\r\n";
+            if (sizeLine.empty())
+                break;
+        }
+
+        return result;
     }
 
     static std::tuple<std::string, size_t> ReadMessage(tcp::socket& socket)
     {
         std::string buffer;
         auto headSize = asio::read_until(socket, asio::dynamic_buffer(buffer), "\r\n\r\n"sv);
-        auto contentLength = GetContentLength(std::string_view(buffer).substr(0, headSize));
+        auto head = buffer.substr(0, headSize);
+        buffer.erase(0, headSize);
 
-        if (buffer.size() < headSize + contentLength)
+        if (IsChunked(head))
         {
-            asio::read(socket, asio::dynamic_buffer(buffer), asio::transfer_exactly(headSize + contentLength - buffer.size()));
+            auto body = ReadChunkedData(socket, buffer);
+            return { head + body, headSize };
         }
-
-        return { buffer, headSize };
+        else
+        {
+            auto contentLength = GetContentLength(head);
+            auto body = ReadData(socket, buffer, contentLength);
+            return { head + body, headSize };
+        }
     }
 
     static HttpRequestMessage ReadRequestMessage(tcp::socket& socket)
@@ -219,9 +292,16 @@ namespace SystemTests
     {
     public:
         using Handler = std::function<void(tcp::socket&)>;
+        using MultiHandler = std::function<void(tcp::socket&, size_t)>;
 
         explicit ScriptedServer(Handler handler) :
+            ScriptedServer(1, [handler = std::move(handler)](tcp::socket& socket, size_t) { handler(socket); })
+        {
+        }
+
+        ScriptedServer(size_t connections, MultiHandler handler) :
             m_acceptor(m_ioContext, tcp::endpoint(asio::ip::address_v4::loopback(), 0)),
+            m_connections(connections),
             m_handler(std::move(handler)),
             m_thread([this]() { Run(); })
         {
@@ -264,9 +344,12 @@ namespace SystemTests
         {
             try
             {
-                tcp::socket socket(m_ioContext);
-                m_acceptor.accept(socket);
-                m_handler(socket);
+                for (size_t index = 0; index < m_connections; index++)
+                {
+                    tcp::socket socket(m_ioContext);
+                    m_acceptor.accept(socket);
+                    m_handler(socket, index);
+                }
             }
             catch (...)
             {
@@ -276,7 +359,8 @@ namespace SystemTests
 
         asio::io_context m_ioContext;
         tcp::acceptor m_acceptor;
-        Handler m_handler;
+        size_t m_connections;
+        MultiHandler m_handler;
         std::thread m_thread;
         std::exception_ptr m_failure;
     };
@@ -302,7 +386,7 @@ namespace SystemTests
             return configuration;
         }
 
-        ProxyConfiguration ManualConfiguration(uint16_t upstreamPort) const
+        ProxyConfiguration ManualProxyConfiguration(uint16_t upstreamPort) const
         {
             auto configuration = DirectConfiguration();
             configuration.proxyMode = ProxyMode::Manual;
@@ -326,7 +410,7 @@ namespace SystemTests
             return socket;
         }
 
-        HttpResponseMessage SendRequest(std::string_view request) const
+        HttpResponseMessage SendRequestToProxy(std::string_view request) const
         {
             asio::io_context ioContext;
             auto socket = ConnectToProxy(ioContext);
@@ -348,7 +432,7 @@ namespace SystemTests
     TEST_F(ProxySystemTest, DirectGetRequest)
     {
         HttpRequestMessage originRequest;
-        ScriptedServer origin([&](tcp::socket& socket) {
+        ScriptedServer originServer([&](tcp::socket& socket) {
             originRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 200 OK\r\n"
@@ -360,32 +444,28 @@ namespace SystemTests
 
         StartProxy(DirectConfiguration());
 
-        auto response = SendRequest(std::format(
-            "GET http://127.0.0.1:{0}/resource HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(std::format(
+            "GET http://127.0.0.1:{0}/direct-get-request HTTP/1.1\r\n"
             "Host: 127.0.0.1:{0}\r\n"
-            "Proxy-Connection: keep-alive\r\n"
-            "Proxy-Authorization: Basic ignored\r\n"
             "X-Test: direct-get\r\n"
             "\r\n",
-            origin.GetPort()));
-        origin.RethrowFailure();
+            originServer.GetPort()));
+        originServer.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetBody(), "get-body");
         EXPECT_EQ(originRequest.GetMethod(), "GET");
-        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/resource");
+        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/direct-get-request");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("X-Test"sv), "direct-get");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "close");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
-        EXPECT_FALSE(originRequest.GetHeaders().Contains("Proxy-Connection"sv));
-        EXPECT_FALSE(originRequest.GetHeaders().Contains("Proxy-Authorization"sv));
         EXPECT_TRUE(originRequest.GetBody().empty());
     }
 
     TEST_F(ProxySystemTest, DirectPostRequest)
     {
         HttpRequestMessage originRequest;
-        ScriptedServer origin([&](tcp::socket& socket) {
+        ScriptedServer originServer([&](tcp::socket& socket) {
             originRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 201 Created\r\n"
@@ -398,20 +478,20 @@ namespace SystemTests
         StartProxy(DirectConfiguration());
 
         constexpr auto body = "name=winpx&mode=system-test"sv;
-        auto response = SendRequest(std::format(
-            "POST http://127.0.0.1:{}/submit HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(std::format(
+            "POST http://127.0.0.1:{}/direct-post-request HTTP/1.1\r\n"
             "Host: 127.0.0.1:{}\r\n"
             "Content-Type: application/x-www-form-urlencoded\r\n"
             "Content-Length: {}\r\n"
             "\r\n"
             "{}",
-            origin.GetPort(), origin.GetPort(), body.size(), body));
-        origin.RethrowFailure();
+            originServer.GetPort(), originServer.GetPort(), body.size(), body));
+        originServer.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::Created);
         EXPECT_EQ(response.GetBody(), "post-body");
         EXPECT_EQ(originRequest.GetMethod(), "POST");
-        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/submit");
+        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/direct-post-request");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Content-Type"sv), "application/x-www-form-urlencoded");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "close");
         EXPECT_EQ(originRequest.GetBody(), body);
@@ -420,7 +500,7 @@ namespace SystemTests
     TEST_F(ProxySystemTest, DirectHeadRequest)
     {
         HttpRequestMessage originRequest;
-        ScriptedServer origin([&](tcp::socket& socket) {
+        ScriptedServer originServer([&](tcp::socket& socket) {
             originRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 200 OK\r\n"
@@ -431,25 +511,25 @@ namespace SystemTests
 
         StartProxy(DirectConfiguration());
 
-        auto response = SendRequest(std::format(
-            "HEAD http://127.0.0.1:{0}/metadata HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(std::format(
+            "HEAD http://127.0.0.1:{0}/direct-head-request HTTP/1.1\r\n"
             "Host: 127.0.0.1:{0}\r\n"
             "\r\n",
-            origin.GetPort()));
-        origin.RethrowFailure();
+            originServer.GetPort()));
+        originServer.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetHeaders().GetValue("Content-Length"sv), "123");
         EXPECT_EQ(response.GetHeaders().GetValue("Connection"sv), "close");
         EXPECT_TRUE(response.GetBody().empty());
         EXPECT_EQ(originRequest.GetMethod(), "HEAD");
-        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/metadata");
+        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/direct-head-request");
     }
 
     TEST_F(ProxySystemTest, ProxyGetRequest)
     {
         HttpRequestMessage upstreamRequest;
-        ScriptedServer upstream([&](tcp::socket& socket) {
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
             upstreamRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 200 OK\r\n"
@@ -459,32 +539,30 @@ namespace SystemTests
                 "get-body"sv);
         });
 
-        StartProxy(ManualConfiguration(upstream.GetPort()));
+        StartProxy(ManualProxyConfiguration(upstreamProxy.GetPort()));
 
-        auto response = SendRequest(
-            "GET http://example.org/resource HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(
+            "GET http://example.org/proxy-get-request HTTP/1.1\r\n"
             "Host: example.org\r\n"
             "Proxy-Connection: keep-alive\r\n"
             "X-Test: proxy-get\r\n"
             "\r\n"sv);
-        upstream.RethrowFailure();
+        upstreamProxy.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetBody(), "get-body");
         EXPECT_EQ(upstreamRequest.GetMethod(), "GET");
-        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/resource");
+        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/proxy-get-request");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("X-Test"sv), "proxy-get");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
-        EXPECT_FALSE(upstreamRequest.GetHeaders().Contains("Proxy-Connection"sv));
-        EXPECT_FALSE(upstreamRequest.GetHeaders().Contains("Proxy-Authorization"sv));
         EXPECT_TRUE(upstreamRequest.GetBody().empty());
     }
 
     TEST_F(ProxySystemTest, ProxyPostRequest)
     {
         HttpRequestMessage upstreamRequest;
-        ScriptedServer upstream([&](tcp::socket& socket) {
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
             upstreamRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 201 Created\r\n"
@@ -494,35 +572,33 @@ namespace SystemTests
                 "post-body"sv);
         });
 
-        StartProxy(ManualConfiguration(upstream.GetPort()));
+        StartProxy(ManualProxyConfiguration(upstreamProxy.GetPort()));
 
         constexpr auto body = "name=winpx&mode=system-test"sv;
-        auto response = SendRequest(std::format(
-            "POST http://example.org/submit HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(std::format(
+            "POST http://example.org/proxy-post-request HTTP/1.1\r\n"
             "Host: example.org\r\n"
             "Content-Type: application/x-www-form-urlencoded\r\n"
             "Content-Length: {}\r\n"
             "\r\n"
             "{}",
             body.size(), body));
-        upstream.RethrowFailure();
+        upstreamProxy.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::Created);
         EXPECT_EQ(response.GetBody(), "post-body");
         EXPECT_EQ(upstreamRequest.GetMethod(), "POST");
-        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/submit");
+        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/proxy-post-request");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Content-Type"sv), "application/x-www-form-urlencoded");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
-        EXPECT_FALSE(upstreamRequest.GetHeaders().Contains("Proxy-Connection"sv));
-        EXPECT_FALSE(upstreamRequest.GetHeaders().Contains("Proxy-Authorization"sv));
         EXPECT_EQ(upstreamRequest.GetBody(), body);
     }
 
     TEST_F(ProxySystemTest, ProxyHeadRequest)
     {
         HttpRequestMessage upstreamRequest;
-        ScriptedServer upstream([&](tcp::socket& socket) {
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
             upstreamRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 200 OK\r\n"
@@ -531,35 +607,66 @@ namespace SystemTests
                 "\r\n"sv);
         });
 
-        StartProxy(ManualConfiguration(upstream.GetPort()));
+        StartProxy(ManualProxyConfiguration(upstreamProxy.GetPort()));
 
-        auto response = SendRequest(std::format(
-            "HEAD http://example.org/metadata HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(std::format(
+            "HEAD http://example.org/proxy-head-request HTTP/1.1\r\n"
             "Host: example.org\r\n"
             "\r\n"));
-        upstream.RethrowFailure();
+        upstreamProxy.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetHeaders().GetValue("Content-Length"sv), "123");
         EXPECT_EQ(response.GetHeaders().GetValue("Connection"sv), "close");
         EXPECT_TRUE(response.GetBody().empty());
         EXPECT_EQ(upstreamRequest.GetMethod(), "HEAD");
-        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/metadata");
+        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/proxy-head-request");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
-        EXPECT_FALSE(upstreamRequest.GetHeaders().Contains("Proxy-Connection"sv));
-        EXPECT_FALSE(upstreamRequest.GetHeaders().Contains("Proxy-Authorization"sv));
         EXPECT_TRUE(upstreamRequest.GetBody().empty());
     }
 
-    TEST_F(ProxySystemTest, DecodesChunkedRequestBody)
+    TEST_F(ProxySystemTest, HopByHopHeadersDoNotGetForwarded)
+    {
+        HttpRequestMessage originRequest;
+        ScriptedServer originServer([&](tcp::socket& socket) {
+            originRequest = ReadRequestMessage(socket);
+            WriteAll(socket,
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 0\r\n"
+                "Connection: close\r\n"
+                "\r\n"sv);
+        });
+
+        StartProxy(DirectConfiguration());
+
+        auto response = SendRequestToProxy(std::format(
+            "GET http://127.0.0.1:{0}/hop-by-hop HTTP/1.1\r\n"
+            "Host: 127.0.0.1:{0}\r\n"
+            "Proxy-Connection: keep-alive\r\n"
+            "Proxy-Authorization: Basic secret\r\n"
+            "X-Test: direct-get\r\n"
+            "X-Remove: to-be-removed\r\n"
+            "Connection: X-Remove\r\n"
+            "\r\n",
+            originServer.GetPort()));
+        originServer.RethrowFailure();
+
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(originRequest.GetHeaders().GetValue("X-Test"sv), "direct-get");
+        EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "close");
+        EXPECT_FALSE(originRequest.GetHeaders().Contains("Proxy-Connection"sv));
+        EXPECT_FALSE(originRequest.GetHeaders().Contains("Proxy-Authorization"sv));
+        EXPECT_FALSE(originRequest.GetHeaders().Contains("X-Remove"sv));
+    }
+
+    TEST_F(ProxySystemTest, ForwardsChunkedRequestBody)
     {
         const std::string largeChunk(largeChunkSize, 'X');
         const std::string chunkedBody = MakeChunkedBody({ "hello"sv, largeChunk, "world"sv });
-        const std::string decodedBody = "hello" + largeChunk + "world";
 
         HttpRequestMessage originRequest;
-        ScriptedServer origin([&](tcp::socket& socket) {
+        ScriptedServer originServer([&](tcp::socket& socket) {
             originRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 200 OK\r\n"
@@ -571,23 +678,21 @@ namespace SystemTests
 
         StartProxy(DirectConfiguration());
 
-        auto response = SendRequest(std::format(
-            "POST http://127.0.0.1:{0}/upload HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(std::format(
+            "POST http://127.0.0.1:{0}/forwards-chunked-request HTTP/1.1\r\n"
             "Host: 127.0.0.1:{0}\r\n"
             "Transfer-Encoding: chunked\r\n"
             "\r\n"
             "{1}",
-            origin.GetPort(),
+            originServer.GetPort(),
             chunkedBody));
-        origin.RethrowFailure();
+        originServer.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetBody(), "chunked-request");
-        EXPECT_EQ(originRequest.GetMethod(), "POST");
-        EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/upload");
-        EXPECT_FALSE(originRequest.GetHeaders().Contains("Transfer-Encoding"sv));
-        EXPECT_EQ(originRequest.GetHeaders().GetValue("Content-Length"sv), std::to_string(decodedBody.size()));
-        EXPECT_EQ(originRequest.GetBody(), decodedBody);
+        EXPECT_EQ(originRequest.GetHeaders().GetValue("Transfer-Encoding"sv), "chunked");
+        EXPECT_FALSE(originRequest.GetHeaders().Contains("Content-Length"sv));
+        EXPECT_EQ(originRequest.GetBody(), chunkedBody);
     }
 
     TEST_F(ProxySystemTest, ForwardsChunkedResponseBody)
@@ -596,7 +701,7 @@ namespace SystemTests
         const std::string chunkedBody = MakeChunkedBody({ "hello"sv, largeChunk, "world"sv });
 
         HttpRequestMessage originRequest;
-        ScriptedServer origin([&](tcp::socket& socket) {
+        ScriptedServer originServer([&](tcp::socket& socket) {
             originRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 200 OK\r\n"
@@ -607,12 +712,12 @@ namespace SystemTests
 
         StartProxy(DirectConfiguration());
 
-        auto response = SendRequest(std::format(
-            "GET http://127.0.0.1:{0}/stream HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(std::format(
+            "GET http://127.0.0.1:{0}/forwards-chunked-response HTTP/1.1\r\n"
             "Host: 127.0.0.1:{0}\r\n"
             "\r\n"sv,
-            origin.GetPort()));
-        origin.RethrowFailure();
+            originServer.GetPort()));
+        originServer.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetHeaders().GetValue("Transfer-Encoding"sv), "chunked");
@@ -624,7 +729,7 @@ namespace SystemTests
     {
         constexpr auto payload = "simulated-tls-record"sv;
 
-        ScriptedServer target([&](tcp::socket& socket) {
+        ScriptedServer originServer([&](tcp::socket& socket) {
             std::string received(payload.size(), '\0');
             asio::read(socket, asio::buffer(received));
             ASSERT_EQ(payload, received);
@@ -638,7 +743,7 @@ namespace SystemTests
                              "CONNECT 127.0.0.1:{0} HTTP/1.1\r\n"
                              "Host: 127.0.0.1:{0}\r\n"
                              "\r\n",
-                             target.GetPort()));
+                             originServer.GetPort()));
 
         auto response = ReadResponseMessage(client);
         ASSERT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
@@ -648,16 +753,16 @@ namespace SystemTests
         std::string echoed(payload.size(), '\0');
         asio::read(client, asio::buffer(echoed));
         EXPECT_EQ(payload, echoed);
-        target.RethrowFailure();
+        originServer.RethrowFailure();
     }
 
     TEST_F(ProxySystemTest, TunnelsHttpsThroughUpstreamProxy)
     {
         constexpr auto payload = "simulated-tls-record"sv;
 
-        HttpRequestMessage connectRequest;
-        ScriptedServer upstream([&](tcp::socket& socket) {
-            connectRequest = ReadRequestMessage(socket);
+        HttpRequestMessage upstreamRequest;
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
+            upstreamRequest = ReadRequestMessage(socket);
             WriteAll(socket, "HTTP/1.1 200 Connection Established\r\n\r\n"sv);
 
             std::string received(payload.size(), '\0');
@@ -666,7 +771,7 @@ namespace SystemTests
             WriteAll(socket, received);
         });
 
-        StartProxy(ManualConfiguration(upstream.GetPort()));
+        StartProxy(ManualProxyConfiguration(upstreamProxy.GetPort()));
         asio::io_context ioContext;
         auto client = ConnectToProxy(ioContext);
         WriteAll(client,
@@ -682,17 +787,17 @@ namespace SystemTests
         std::string echoed(payload.size(), '\0');
         asio::read(client, asio::buffer(echoed));
         EXPECT_EQ(payload, echoed);
-        upstream.RethrowFailure();
+        upstreamProxy.RethrowFailure();
 
-        EXPECT_EQ(connectRequest.GetMethod(), "CONNECT");
-        EXPECT_EQ(connectRequest.GetRequestUri().ToString(), "secure.example.test:443");
-        EXPECT_EQ(connectRequest.GetHeaders().GetValue("Host"sv), "secure.example.test:443");
+        EXPECT_EQ(upstreamRequest.GetMethod(), "CONNECT");
+        EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "secure.example.test:443");
+        EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Host"sv), "secure.example.test:443");
     }
 
     TEST_F(ProxySystemTest, UpstreamProxyBasicAuthentication)
     {
         std::array<HttpRequestMessage, 2> upstreamRequests;
-        ScriptedServer upstream([&](tcp::socket& socket) {
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
             upstreamRequests[0] = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 407 Proxy Authentication Required\r\n"
@@ -712,17 +817,17 @@ namespace SystemTests
                 "basic-passed"sv);
         });
 
-        auto configuration = ManualConfiguration(upstream.GetPort());
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
         configuration.allowedAuthenticationSchemes = { AuthenticationScheme::Basic };
         configuration.gatewayUsername = "test-user"sv;
         configuration.gatewayPassword = "test-password"sv;
         StartProxy(std::move(configuration));
 
-        auto response = SendRequest(
+        auto response = SendRequestToProxy(
             "GET http://example.org/basic HTTP/1.1\r\n"
             "Host: example.org\r\n"
             "\r\n"sv);
-        upstream.RethrowFailure();
+        upstreamProxy.RethrowFailure();
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetBody(), "basic-passed");
@@ -736,7 +841,7 @@ namespace SystemTests
     TEST_F(ProxySystemTest, StopsBasicHandshakeAfterCredentialsAreRejected)
     {
         std::array<HttpRequestMessage, 2> upstreamRequests;
-        ScriptedServer upstream([&](tcp::socket& socket) {
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
             for (auto& request : upstreamRequests)
             {
                 request = ReadRequestMessage(socket);
@@ -748,19 +853,19 @@ namespace SystemTests
             }
         });
 
-        auto configuration = ManualConfiguration(upstream.GetPort());
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
         configuration.allowedAuthenticationSchemes = { AuthenticationScheme::Basic };
         configuration.gatewayUsername = "wrong-user"sv;
         configuration.gatewayPassword = "wrong-password"sv;
         StartProxy(std::move(configuration));
 
-        auto response = SendRequest(
-            "GET http://example.org/basic HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(
+            "GET http://example.org/basic-rejected HTTP/1.1\r\n"
             "Host: example.org\r\n"
             "\r\n"sv);
-        upstream.RethrowFailure();
+        upstreamProxy.RethrowFailure();
 
-        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::ProxyAuthenticationRequired);
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::BadGateway);
         EXPECT_FALSE(upstreamRequests[0].GetHeaders().Contains("Proxy-Authorization"sv));
         ASSERT_EQ(upstreamRequests[1].GetHeaders().GetValue("Proxy-Authorization"sv), "Basic " + Base64::Encode("wrong-user:wrong-password"sv));
     }
@@ -768,7 +873,7 @@ namespace SystemTests
     TEST_F(ProxySystemTest, ReturnsChallengeWhenUpstreamOffersNoAllowedAuthenticationScheme)
     {
         HttpRequestMessage upstreamRequest;
-        ScriptedServer upstream([&](tcp::socket& socket) {
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
             upstreamRequest = ReadRequestMessage(socket);
             WriteAll(socket,
                 "HTTP/1.1 407 Proxy Authentication Required\r\n"
@@ -778,18 +883,18 @@ namespace SystemTests
                 "\r\n"sv);
         });
 
-        auto configuration = ManualConfiguration(upstream.GetPort());
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
         configuration.allowedAuthenticationSchemes = { AuthenticationScheme::Negotiate };
         StartProxy(std::move(configuration));
 
-        auto response = SendRequest(
-            "GET http://example.org/rejected HTTP/1.1\r\n"
+        auto response = SendRequestToProxy(
+            "GET http://example.org/returns-challenge HTTP/1.1\r\n"
             "Host: example.org\r\n"
             "\r\n"sv);
-        upstream.RethrowFailure();
+        upstreamProxy.RethrowFailure();
 
-        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::ProxyAuthenticationRequired);
-        EXPECT_EQ(response.GetHeaders().GetValue("Proxy-Authenticate"sv), "Basic realm=\"system-test\"");
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::BadGateway);
+        EXPECT_FALSE(response.GetHeaders().Contains("Proxy-Authenticate"sv));
         EXPECT_FALSE(upstreamRequest.GetHeaders().Contains("Proxy-Authorization"sv));
     }
 
@@ -799,7 +904,7 @@ namespace SystemTests
         std::vector<SECURITY_STATUS> serverStatuses;
         std::optional<size_t> prematureCloseRound;
 
-        ScriptedServer upstream([&](tcp::socket& socket) {
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
             upstreamRequests.push_back(ReadRequestMessage(socket));
             WriteAll(socket,
                 "HTTP/1.1 407 Proxy Authentication Required\r\n"
@@ -860,15 +965,15 @@ namespace SystemTests
             throw std::runtime_error("Negotiate handshake exceeded the expected number of rounds.");
         });
 
-        auto configuration = ManualConfiguration(upstream.GetPort());
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
         configuration.allowedAuthenticationSchemes = { AuthenticationScheme::Negotiate, AuthenticationScheme::Ntlm };
         StartProxy(std::move(configuration));
 
-        auto response = SendRequest(
+        auto response = SendRequestToProxy(
             "GET http://example.org/negotiate HTTP/1.1\r\n"
             "Host: example.org\r\n"
             "\r\n"sv);
-        upstream.RethrowFailure();
+        upstreamProxy.RethrowFailure();
 
         if (prematureCloseRound.has_value())
         {
@@ -892,5 +997,280 @@ namespace SystemTests
             EXPECT_TRUE(IStartsWith(*authorization, "Negotiate "sv));
             EXPECT_FALSE(GetAuthenticationToken(upstreamRequests[index], "Negotiate"sv).empty());
         }
+    }
+
+    TEST_F(ProxySystemTest, ReconnectsWhenUpstreamClosesConnectionAfter407)
+    {
+        std::array<HttpRequestMessage, 2> upstreamRequests;
+        ScriptedServer upstreamProxy(2, [&](tcp::socket& socket, size_t index) {
+            upstreamRequests[index] = ReadRequestMessage(socket);
+            if (index == 0)
+            {
+                WriteAll(socket,
+                    "HTTP/1.1 407 Proxy Authentication Required\r\n"
+                    "Proxy-Authenticate: Basic realm=\"system-test\"\r\n"
+                    "Content-Length: 0\r\n"
+                    "Connection: close\r\n"
+                    "\r\n"sv);
+            }
+            else
+            {
+                WriteAll(socket,
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Length: 9\r\n"
+                    "Connection: close\r\n"
+                    "\r\n"
+                    "reconnect"sv);
+            }
+        });
+
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
+        configuration.allowedAuthenticationSchemes = { AuthenticationScheme::Basic };
+        configuration.gatewayUsername = "test-user"sv;
+        configuration.gatewayPassword = "test-password"sv;
+        StartProxy(std::move(configuration));
+
+        auto response = SendRequestToProxy(
+            "GET http://example.org/reconnect HTTP/1.1\r\n"
+            "Host: example.org\r\n"
+            "\r\n"sv);
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(response.GetBody(), "reconnect");
+        EXPECT_FALSE(upstreamRequests[0].GetHeaders().Contains("Proxy-Authorization"sv));
+        EXPECT_EQ(upstreamRequests[1].GetHeaders().GetValue("Proxy-Authorization"sv), "Basic " + Base64::Encode("test-user:test-password"sv));
+    }
+
+    TEST_F(ProxySystemTest, ReconnectsAfterMalformedUpstreamResponse)
+    {
+        ScriptedServer upstreamProxy(2, [&](tcp::socket& socket, size_t index) {
+            ReadRequestMessage(socket);
+            if (index == 0)
+            {
+                WriteAll(socket, "this is not http\r\n\r\n"sv);
+            }
+            else
+            {
+                WriteAll(socket,
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Length: 9\r\n"
+                    "Connection: close\r\n"
+                    "\r\n"
+                    "recovered"sv);
+            }
+        });
+
+        StartProxy(ManualProxyConfiguration(upstreamProxy.GetPort()));
+
+        auto response = SendRequestToProxy(
+            "GET http://example.org/malformed HTTP/1.1\r\n"
+            "Host: example.org\r\n"
+            "\r\n"sv);
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(response.GetBody(), "recovered");
+    }
+
+    TEST_F(ProxySystemTest, InsertsNoExpectContinueForSmallUpstreamRequestBody)
+    {
+        constexpr auto body = "expect-body"sv;
+
+        std::string upstreamHead;
+        std::string upstreamBody;
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
+            std::string buffer;
+            auto headSize = asio::read_until(socket, asio::dynamic_buffer(buffer), "\r\n\r\n"sv);
+            upstreamHead = buffer.substr(0, headSize);
+            buffer.erase(0, headSize);
+
+            WriteAll(socket, "HTTP/1.1 100 Continue\r\n\r\n"sv);
+            upstreamBody = ReadData(socket, buffer, body.size());
+
+            WriteAll(socket,
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 2\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "ok"sv);
+        });
+
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
+        configuration.httpConfiguration.maxBodySizeBeforeProbing = body.size();
+        StartProxy(std::move(configuration));
+
+        auto response = SendRequestToProxy(std::format(
+            "POST http://example.org/expect HTTP/1.1\r\n"
+            "Host: example.org\r\n"
+            "Content-Length: {}\r\n"
+            "\r\n"
+            "{}",
+            body.size(),
+            body));
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(response.GetBody(), "ok");
+        EXPECT_EQ(upstreamHead.find("Expect: 100-continue\r\n"), std::string::npos);
+        EXPECT_EQ(upstreamBody, body);
+    }
+
+    TEST_F(ProxySystemTest, InsertsExpectContinueForBigUpstreamRequestBody)
+    {
+        constexpr auto body = "expect-body"sv;
+
+        std::string upstreamHead;
+        std::string upstreamBody;
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
+            std::string buffer;
+            auto headSize = asio::read_until(socket, asio::dynamic_buffer(buffer), "\r\n\r\n"sv);
+            upstreamHead = buffer.substr(0, headSize);
+            buffer.erase(0, headSize);
+
+            WriteAll(socket, "HTTP/1.1 100 Continue\r\n\r\n"sv);
+            upstreamBody = ReadData(socket, buffer, body.size());
+
+            WriteAll(socket,
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 2\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "ok"sv);
+        });
+
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
+        configuration.httpConfiguration.maxBodySizeBeforeProbing = body.size() - 1;
+        StartProxy(std::move(configuration));
+
+        auto response = SendRequestToProxy(std::format(
+            "POST http://example.org/expect HTTP/1.1\r\n"
+            "Host: example.org\r\n"
+            "Content-Length: {}\r\n"
+            "\r\n"
+            "{}",
+            body.size(),
+            body));
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(response.GetBody(), "ok");
+        EXPECT_NE(upstreamHead.find("Expect: 100-continue\r\n"), std::string::npos);
+        EXPECT_EQ(upstreamBody, body);
+    }
+
+    TEST_F(ProxySystemTest, SendsBodyAfterExpectContinueTimeout)
+    {
+        constexpr auto body = "late-body"sv;
+
+        HttpRequestMessage upstreamRequest;
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
+            // Never answers 100 Continue; the proxy must send the body after the timeout on the same connection.
+            upstreamRequest = ReadRequestMessage(socket);
+            WriteAll(socket,
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 2\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "ok"sv);
+        });
+
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
+        configuration.httpConfiguration.expectContinueTimeout = 100ms;
+        configuration.httpConfiguration.maxBodySizeBeforeProbing = body.size() - 1;
+        StartProxy(std::move(configuration));
+
+        auto response = SendRequestToProxy(std::format(
+            "POST http://example.org/timeout HTTP/1.1\r\n"
+            "Host: example.org\r\n"
+            "Content-Length: {}\r\n"
+            "\r\n"
+            "{}",
+            body.size(),
+            body));
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(upstreamRequest.GetHeaders().GetValue("Expect"sv), "100-continue");
+        EXPECT_EQ(upstreamRequest.GetBody(), body);
+    }
+
+    TEST_F(ProxySystemTest, ReplaysBodyWhenAuthenticationIsRequestedAfterExpectTimeout)
+    {
+        constexpr auto body = "replayed-body"sv;
+
+        std::array<HttpRequestMessage, 2> upstreamRequests;
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
+            upstreamRequests[0] = ReadRequestMessage(socket);
+            WriteAll(socket,
+                "HTTP/1.1 407 Proxy Authentication Required\r\n"
+                "Proxy-Authenticate: Basic realm=\"system-test\"\r\n"
+                "Content-Length: 0\r\n"
+                "\r\n"sv);
+
+            upstreamRequests[1] = ReadRequestMessage(socket);
+            WriteAll(socket,
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 2\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "ok"sv);
+        });
+
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
+        configuration.httpConfiguration.expectContinueTimeout = 100ms;
+        configuration.allowedAuthenticationSchemes = { AuthenticationScheme::Basic };
+        configuration.gatewayUsername = "test-user"sv;
+        configuration.gatewayPassword = "test-password"sv;
+        StartProxy(std::move(configuration));
+
+        auto response = SendRequestToProxy(std::format(
+            "POST http://example.org/replay HTTP/1.1\r\n"
+            "Host: example.org\r\n"
+            "Content-Length: {}\r\n"
+            "\r\n"
+            "{}",
+            body.size(),
+            body));
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(upstreamRequests[0].GetBody(), body);
+        EXPECT_EQ(upstreamRequests[1].GetBody(), body);
+        EXPECT_TRUE(upstreamRequests[1].GetHeaders().Contains("Proxy-Authorization"sv));
+    }
+
+    TEST_F(ProxySystemTest, DeliversEarlyRejectionWithoutResettingClient)
+    {
+        const std::string body(0x40000, 'B');
+
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
+            std::string buffer;
+            asio::read_until(socket, asio::dynamic_buffer(buffer), "\r\n\r\n"sv);
+            WriteAll(socket,
+                "HTTP/1.1 403 Forbidden\r\n"
+                "Content-Length: 8\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "rejected"sv);
+        });
+
+        auto configuration = ManualProxyConfiguration(upstreamProxy.GetPort());
+        configuration.httpConfiguration.maxBodySizeBeforeProbing = body.size() - 1;
+        StartProxy(std::move(configuration));
+
+        HttpResponseMessage response;
+        ASSERT_NO_THROW(response = SendRequestToProxy(std::format(
+                            "POST http://example.org/reject HTTP/1.1\r\n"
+                            "Host: example.org\r\n"
+                            "Content-Length: {}\r\n"
+                            "\r\n"
+                            "{}",
+                            body.size(),
+                            body)));
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::Forbidden);
+        EXPECT_EQ(response.GetBody(), "rejected");
     }
 }

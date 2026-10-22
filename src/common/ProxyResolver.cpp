@@ -51,7 +51,7 @@ namespace winpx
 
     ProxyResolverResult ProxyResolver::ResolveProxy(const std::string& url) const
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!: url='%!str!', proxyMode=%!PROXY_MODE!", url, static_cast<int>(m_proxyConfiguration.proxyMode));
+        DoTraceMessage(WppVerbose, "%!FUNC!: url='%!str!', proxyMode=%!ProxyMode!", url, static_cast<int>(m_proxyConfiguration.proxyMode));
 
         switch (m_proxyConfiguration.proxyMode)
         {
@@ -89,7 +89,7 @@ namespace winpx
         else if (!systemProxyConfiguration->proxy.empty())
         {
             Uri proxy(PickProxyFromList(systemProxyConfiguration->proxy, url));
-            DoTraceMessage(WppTrace, "Using system proxy '%!sv!:%d' for '%!str!'", proxy.host, proxy.port, url);
+            DoTraceMessage(WppVerbose, "Using system proxy '%!sv!:%d' for '%!str!'", proxy.host, proxy.port, url);
             return { proxy.IsEmpty(), proxy.GetHost(), proxy.GetPort() };
         }
         else if (systemProxyConfiguration->autoDetect)
@@ -101,14 +101,14 @@ namespace winpx
         }
         else
         {
-            DoTraceMessage(WppTrace, "No system proxy configured for '%!str!', using DIRECT.", url);
+            DoTraceMessage(WppVerbose, "No system proxy configured for '%!str!', using DIRECT.", url);
             return {};
         }
     }
 
     ProxyResolverResult ProxyResolver::GetProxyFromDirect(const std::string& url) const
     {
-        DoTraceMessage(WppTrace, "No proxy configured for '%!str!', using DIRECT.", url);
+        DoTraceMessage(WppVerbose, "No proxy configured for '%!str!', using DIRECT.", url);
         return {};
     }
 
@@ -131,7 +131,7 @@ namespace winpx
         }
 
         Uri uri(proxy);
-        DoTraceMessage(WppTrace, "Using manual proxy '%!sv!:%d' for '%!str!'", uri.host, uri.port, url);
+        DoTraceMessage(WppVerbose, "Using manual proxy '%!sv!:%d' for '%!str!'", uri.host, uri.port, url);
         return { uri.IsEmpty(), uri.GetHost(), uri.GetPort() };
     }
 
@@ -178,7 +178,7 @@ namespace winpx
         }
         else if (proxyInfo.dwAccessType == WINHTTP_ACCESS_TYPE_NO_PROXY)
         {
-            DoTraceMessage(WppTrace, "Using DIRECT connection for '%!str!'", url);
+            DoTraceMessage(WppVerbose, "Using DIRECT connection for '%!str!'", url);
         }
         else if (proxyInfo.lpszProxy != nullptr)
         {
@@ -187,7 +187,7 @@ namespace winpx
             Uri uri(proxy);
             host = uri.GetHost();
             port = uri.GetPort();
-            DoTraceMessage(WppTrace, "Resolved proxy '%!sv!:%d' for '%!str!'", host, port, url);
+            DoTraceMessage(WppVerbose, "Resolved proxy '%!sv!:%d' for '%!str!'", host, port, url);
         }
 
         if (proxyInfo.lpszProxy != nullptr)
@@ -303,37 +303,34 @@ namespace winpx
         case ProxyMode::System:
             if (!systemProxyConfiguration->autoConfigUrl.empty())
             {
-                DoTraceMessage(WppTrace, "Proxy mode set to 'System', using PAC URL '%!str!'.",
-                    systemProxyConfiguration->autoConfigUrl);
+                DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using PAC URL '%!str!'.", systemProxyConfiguration->autoConfigUrl);
             }
             else if (!systemProxyConfiguration->proxy.empty())
             {
-                DoTraceMessage(WppTrace, "Proxy mode set to 'System', using proxy URL '%!str!'.",
-                    systemProxyConfiguration->proxy);
+                DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using proxy URL '%!str!'.", systemProxyConfiguration->proxy);
             }
             else if (systemProxyConfiguration->autoDetect)
             {
-                DoTraceMessage(WppTrace, "Proxy mode set to 'System', using WPAD.");
+                DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using WPAD.");
             }
             else
             {
-                DoTraceMessage(WppTrace, "Proxy mode set to 'System', using 'DIRECT'.");
+                DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using 'DIRECT'.");
             }
             break;
         case ProxyMode::Direct:
-            DoTraceMessage(WppTrace, "Proxy mode set to 'Direct', using DIRECT.");
+            DoTraceMessage(WppVerbose, "Proxy mode set to 'Direct', using DIRECT.");
             break;
         case ProxyMode::Manual:
-            DoTraceMessage(WppTrace, "Proxy mode set to 'Manual', using proxy URL HTTP='%!str!' and HTTPS='%!str!'.",
+            DoTraceMessage(WppVerbose, "Proxy mode set to 'Manual', using proxy URL HTTP='%!str!' and HTTPS='%!str!'.",
                 m_proxyConfiguration.httpProxyUrl,
                 m_proxyConfiguration.httpsProxyUrl);
             break;
         case ProxyMode::AutoConfig:
-            DoTraceMessage(WppTrace, "Proxy mode set to 'AutoConfig', using PAC URL '%!str!'.",
-                m_proxyConfiguration.autoConfigUrl);
+            DoTraceMessage(WppVerbose, "Proxy mode set to 'AutoConfig', using PAC URL '%!str!'.", m_proxyConfiguration.autoConfigUrl);
             break;
         case ProxyMode::AutoDetect:
-            DoTraceMessage(WppTrace, "Proxy mode set to 'AutoDetect', using WPAD.");
+            DoTraceMessage(WppVerbose, "Proxy mode set to 'AutoDetect', using WPAD.");
             break;
         default:
             throw std::invalid_argument("Invalid proxy mode.");

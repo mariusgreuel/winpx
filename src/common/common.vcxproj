@@ -203,10 +203,12 @@
     <ClCompile Include="HttpHeader.cpp" />
     <ClCompile Include="HttpHeaders.cpp" />
     <ClCompile Include="HttpMessage.cpp" />
+    <ClCompile Include="HttpReplayBuffer.cpp" />
     <ClCompile Include="HttpRequestMessage.cpp" />
     <ClCompile Include="HttpResponseMessage.cpp" />
     <ClCompile Include="HttpStatusCode.cpp" />
     <ClCompile Include="HttpHelper.cpp" />
+    <ClCompile Include="HttpTransport.cpp" />
     <ClCompile Include="HttpWebRequest.cpp" />
     <ClCompile Include="Resources.cpp" />
     <ClCompile Include="Uri.cpp" />
@@ -231,8 +233,11 @@
   <ItemGroup>
     <ClInclude Include="AuthenticationSchemes.h" />
     <ClInclude Include="CommandLineParser.h" />
+    <ClInclude Include="HttpConfiguration.h" />
     <ClInclude Include="HttpHeaders.h" />
     <ClInclude Include="HttpMessageFraming.h" />
+    <ClInclude Include="HttpReplayBuffer.h" />
+    <ClInclude Include="HttpTransport.h" />
     <ClInclude Include="HttpWebRequest.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Resources.h" />

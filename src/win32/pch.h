@@ -45,7 +45,6 @@
         WPP_DEFINE_BIT(WppHighlight) \
         WPP_DEFINE_BIT(WppObject) \
         WPP_DEFINE_BIT(WppGui) \
-        WPP_DEFINE_BIT(WppProxy) \
         WPP_DEFINE_BIT(WppService) \
     )
 // clang-format on

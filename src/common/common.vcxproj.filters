@@ -76,6 +76,12 @@
     <ClCompile Include="Wsl.cpp">
       <Filter>3 Misc</Filter>
     </ClCompile>
+    <ClCompile Include="HttpReplayBuffer.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
+    <ClCompile Include="HttpTransport.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AuthenticationSchemes.h">
@@ -171,6 +177,15 @@
       <Filter>3 Misc</Filter>
     </ClInclude>
     <ClInclude Include="HttpMessageFraming.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpConfiguration.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpReplayBuffer.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpTransport.h">
       <Filter>2 Http</Filter>
     </ClInclude>
   </ItemGroup>

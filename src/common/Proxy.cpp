@@ -145,7 +145,7 @@ namespace winpx
 
     void Proxy::Start()
     {
-        DoTraceMessage(WppInfo, "%!FUNC!: proxyMode=%!PROXY_MODE!, networkMode=%!NETWORK_MODE!",
+        DoTraceMessage(WppInfo, "%!FUNC!: proxyMode=%!ProxyMode!, networkMode=%!NetworkMode!",
             static_cast<int>(m_proxyConfiguration.proxyMode),
             static_cast<int>(m_proxyConfiguration.networkMode));
 

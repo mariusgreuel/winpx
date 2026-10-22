@@ -5,6 +5,7 @@
 
 #pragma once
 #include "AuthenticationSchemes.h"
+#include "HttpConfiguration.h"
 #include "NetworkMode.h"
 #include "ProxyMode.h"
 
@@ -50,10 +51,7 @@ namespace winpx
 
         int threadPoolSize = -1;
 
-        std::chrono::milliseconds resolveTimeout = std::chrono::milliseconds(5000);
-        std::chrono::milliseconds connectTimeout = std::chrono::milliseconds(5000);
-        std::chrono::milliseconds readTimeout = std::chrono::milliseconds(120000);
-        std::chrono::milliseconds writeTimeout = std::chrono::milliseconds(15000);
+        HttpConfiguration httpConfiguration;
 
     private:
         std::string MakeProxyUrl(std::string_view ipAddress) const;

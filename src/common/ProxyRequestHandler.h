@@ -4,15 +4,17 @@
 //
 
 #pragma once
+#include "HttpMessageFraming.h"
+#include "HttpReplayBuffer.h"
 #include "HttpRequestMessage.h"
 #include "HttpResponseMessage.h"
+#include "HttpTransport.h"
 #include "ProxyResolver.h"
 #include "ProxyStatistics.h"
-#include "Uri.h"
 
 namespace winpx
 {
-    class ProxyRequestHandler
+    class ProxyRequestHandler : private HttpTransport
     {
     public:
         explicit ProxyRequestHandler(const ProxyConfiguration& proxyConfiguration, ProxyResolver& proxyResolver, ProxyStatistics& proxyStatistics);
@@ -23,48 +25,67 @@ namespace winpx
 
         asio::awaitable<void> Handle(asio::ip::tcp::socket socket);
 
-    private:
-        struct ProxyConnection
+        enum class RequestStrategy
         {
-            asio::ip::tcp::socket socket;
+            NoBody,
+            StreamBody,
+            StreamAndCaptureBody,
+            ReplayBody,
+            ClientExpect,
+            InsertExpect,
+        };
+
+        struct RequestContext
+        {
+            size_t m_requestId = 0;
+            std::string clientBuffer;
+            std::unique_ptr<HttpReplayBuffer> replayBuffer;
+            HttpMessageFraming framing;
+            RequestStrategy strategy = RequestStrategy::NoBody;
+            bool requestBodySent = false;
+            bool responseHeadSent = false;
+            bool continueSent = false;
+        };
+
+    private:
+        struct ConnectToUpstreamProxyResult
+        {
+            asio::ip::tcp::socket server;
             HttpResponseMessage response;
         };
 
-        asio::awaitable<void> HandleWebServerRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request);
-        asio::awaitable<void> HandleProxyRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request);
-        asio::awaitable<void> HandleConnectRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request);
-        asio::awaitable<void> HandleStandardRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request);
+        struct WaitForContinueResult
+        {
+            std::optional<HttpResponseMessage> response;
+            bool timedOut = false;
+        };
 
-        asio::awaitable<ProxyConnection> ConnectToUpstreamProxy(const ProxyResolverResult& proxy, HttpRequestMessage request, bool hasBody);
+        asio::awaitable<void> HandleRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
+        asio::awaitable<void> HandleWebServerRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
+        asio::awaitable<void> HandleProxyRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
+        asio::awaitable<void> HandleConnectRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
+        asio::awaitable<void> HandleStandardRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
 
-        asio::awaitable<asio::ip::tcp::socket> ConnectTo(std::string_view host, uint16_t port);
-        asio::awaitable<std::string> ReadBody(asio::ip::tcp::socket& client, const HttpMessage& message);
-        asio::awaitable<void> ForwardBody(asio::ip::tcp::socket& upstream, asio::ip::tcp::socket& client, const HttpMessage& message);
-        asio::awaitable<void> Tunnel(asio::ip::tcp::socket& client, asio::ip::tcp::socket& upstream, std::string_view clientLeftover, std::string_view upstreamLeftover);
-
-        asio::awaitable<std::tuple<size_t, size_t>> RelayData(asio::ip::tcp::socket& client, asio::ip::tcp::socket& upstream) const;
-        asio::awaitable<size_t> RelayDataOneWay(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination) const;
-
-        asio::awaitable<std::string> ReadData(asio::ip::tcp::socket& socket, std::string& storage, size_t contentLength) const;
-        asio::awaitable<std::string> ReadChunkedData(asio::ip::tcp::socket& socket, std::string& storage) const;
-
-        asio::awaitable<size_t> ForwardData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& storage, size_t contentLength) const;
-        asio::awaitable<size_t> ForwardChunkedData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& storage) const;
-
-        asio::awaitable<size_t> WriteData(asio::ip::tcp::socket& socket, std::string_view buffer) const;
-        asio::awaitable<size_t> WriteResponse(asio::ip::tcp::socket& socket, HttpResponseMessage response) const;
+        asio::awaitable<ConnectToUpstreamProxyResult> ConnectToUpstreamProxy(RequestContext& context, asio::ip::tcp::socket& client, const ProxyResolverResult& proxy, HttpRequestMessage request);
+        asio::awaitable<HttpResponseMessage> SendRequest(RequestContext& context, asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, const HttpRequestMessage& request);
+        asio::awaitable<WaitForContinueResult> WaitForContinue(asio::ip::tcp::socket& server, std::string& buffer) const;
+        asio::awaitable<HttpResponseMessage> ReceiveFinalResponse(asio::ip::tcp::socket& server, std::string& buffer) const;
 
         bool IsRequestToWebServer(const HttpRequestMessage& request) const;
+        bool IsRequestToWebServer(const Uri& target) const;
         bool IsAuthenticated(const HttpRequestMessage& request, std::string_view headerName) const;
         bool IsSentViaThisProxy(const HttpRequestMessage& request) const;
         std::string CreateViaThisProxy(const HttpRequestMessage& request) const;
 
-        static size_t ParseChunkSize(std::string_view line);
+        RequestStrategy SelectRequestStrategy(const HttpRequestMessage& request, const HttpMessageFraming& framing, bool direct) const;
         static AuthenticationSchemes ParseAuthenticationOffer(const HttpResponseMessage& response);
         static std::vector<std::byte> ParseAuthenticationToken(const HttpResponseMessage& response, std::string_view scheme);
         static std::tuple<std::string_view, std::string_view> SplitAuthenticationHeader(std::string_view value);
         static HttpHeaders FilterHeaders(const HttpHeaders& headers, std::function<bool(std::string_view name)> predicate);
         static bool IsHopByHopHeader(std::string_view name);
+        static bool IsConnectionClose(const HttpMessage& message);
+        static bool HasConnectionOption(const std::vector<std::string_view>& connectionOptions, std::string_view name);
+        static bool HasExpectContinue(const HttpMessage& message);
         static bool HasBasicCredentials(const ProxyConfiguration& configuration);
 
     private:

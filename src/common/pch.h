@@ -29,6 +29,7 @@
 #include <asio/signal_set.hpp>
 #include <asio/strand.hpp>
 #include <asio/use_awaitable.hpp>
+#include <asio/use_future.hpp>
 #include <asio/write.hpp>
 
 #include <algorithm>
@@ -40,6 +41,7 @@
 #include <format>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <iostream>
 #include <limits>
 #include <memory>

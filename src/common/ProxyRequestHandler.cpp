@@ -10,6 +10,7 @@
 
 #include "HttpError.h"
 #include "HttpHelper.h"
+#include "HttpTransport.h"
 #include "ProxyAuthenticationSession.h"
 #include "StringHelper.h"
 #include "Uri.h"
@@ -21,12 +22,11 @@ namespace winpx
     using namespace std::literals::string_view_literals;
     using namespace win32;
 
-    static constexpr size_t maxHeaderBufferSize = 0x100000;
-    static constexpr size_t maxBufferSize = 0x10000;
     static constexpr size_t maxProxyAuthenticationRounds = 5;
-    static constexpr size_t maxChunkSize = 0x40000000;
+    static constexpr size_t maxReconnects = 2;
 
     ProxyRequestHandler::ProxyRequestHandler(const ProxyConfiguration& proxyConfiguration, ProxyResolver& proxyResolver, ProxyStatistics& proxyStatistics) :
+        HttpTransport(proxyConfiguration.httpConfiguration),
         m_proxyConfiguration(proxyConfiguration),
         m_proxyResolver(proxyResolver),
         m_proxyStatistics(proxyStatistics)
@@ -43,58 +43,75 @@ namespace winpx
 
     asio::awaitable<void> ProxyRequestHandler::Handle(asio::ip::tcp::socket client)
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!");
+        DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u]", client.local_endpoint().port(), client.remote_endpoint().port());
 
         m_proxyStatistics.activeConnections += 1;
 
-        std::optional<HttpResponseMessage> errorResponse;
+        std::optional<HttpError> httpError;
 
-        m_proxyStatistics.requests++;
+        RequestContext context;
+        context.m_requestId = ++m_proxyStatistics.requests;
 
         try
         {
+
             std::string message;
-            auto headSize = co_await asio::async_read_until(
+            auto [ec, headSize] = co_await asio::async_read_until(
                 client,
-                asio::dynamic_buffer(message, maxHeaderBufferSize),
+                asio::dynamic_buffer(message, m_proxyConfiguration.httpConfiguration.maxHeadSize),
                 "\r\n\r\n"sv,
-                asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable));
+                asio::as_tuple(asio::cancel_after(m_proxyConfiguration.httpConfiguration.readTimeout, asio::use_awaitable)));
+            if (ec == asio::error::not_found)
+            {
+                throw HttpError(HttpStatusCode::RequestHeaderFieldsTooLarge);
+            }
+            else if (ec == asio::error::operation_aborted || ec == asio::error::timed_out)
+            {
+                throw HttpError(HttpStatusCode::RequestTimeout);
+            }
+            else if (ec)
+            {
+                throw asio::system_error(ec);
+            }
+
             if (headSize > 0)
             {
                 HttpRequestMessage request;
-                request.Parse(message, headSize);
+                try
+                {
+                    request.Parse(message, headSize);
+                }
+                catch (const std::exception& e)
+                {
+                    throw HttpError(HttpStatusCode::BadRequest, e.what());
+                }
 
                 m_proxyStatistics.totalConnections += 1;
                 m_proxyStatistics.totalClientBytesReceived += message.size();
 
-                if (IsRequestToWebServer(request))
-                {
-                    co_await HandleWebServerRequest(client, request);
-                }
-                else
-                {
-                    co_await HandleProxyRequest(client, request);
-                }
+                co_await HandleRequest(context, client, request);
             }
         }
         catch (const HttpError& e)
         {
             DoTraceMessage(WppWarning, "HTTP error: %s", e.what());
-            errorResponse.emplace(e.GetStatusCode(), e.GetReasonPhrase());
+            httpError = e;
             m_proxyStatistics.errors += 1;
         }
         catch (const std::exception& e)
         {
             DoTraceMessage(WppWarning, "std::exception: %s", e.what());
-            errorResponse.emplace(HttpStatusCode::BadGateway);
+            httpError = HttpError(HttpStatusCode::BadGateway);
             m_proxyStatistics.errors += 1;
         }
 
-        if (errorResponse && client.is_open())
+        if (httpError && !context.responseHeadSent && client.is_open())
         {
             try
             {
-                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, std::move(*errorResponse));
+                HttpResponseMessage response(httpError->GetStatusCode(), httpError->GetReasonPhrase());
+                response.GetHeaders().Add("Connection"sv, "close"sv);
+                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, response);
             }
             catch (const std::exception& e)
             {
@@ -102,15 +119,24 @@ namespace winpx
             }
         }
 
-        m_proxyStatistics.activeConnections -= 1;
+        co_await DrainAndClose(client);
 
-        DoTraceMessage(WppVerbose, "%!FUNC!: Closing connection...");
-        asio::error_code ec;
-        client.shutdown(asio::socket_base::shutdown_both, ec);
-        client.close(ec);
+        m_proxyStatistics.activeConnections -= 1;
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleWebServerRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    {
+        if (IsRequestToWebServer(request))
+        {
+            co_await HandleWebServerRequest(context, client, request);
+        }
+        else
+        {
+            co_await HandleProxyRequest(context, client, request);
+        }
+    }
+
+    asio::awaitable<void> ProxyRequestHandler::HandleWebServerRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
     {
         if (m_proxyConfiguration.requireLocalAuthentication && !IsAuthenticated(request, "Authorization"sv))
         {
@@ -118,16 +144,19 @@ namespace winpx
 
             HttpResponseMessage response(HttpStatusCode::Unauthorized);
             response.GetHeaders().Add("WWW-Authenticate", "Basic realm=\"WinPX Proxy\"");
-            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, std::move(response));
+            context.responseHeadSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, response);
         }
         else
         {
             WebServer webServer(m_proxyConfiguration, m_proxyStatistics);
-            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, webServer.ProcessRequest(request));
+            auto response = webServer.ProcessRequest(request);
+            context.responseHeadSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, response);
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleProxyRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleProxyRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
     {
         if (m_proxyConfiguration.requireLocalAuthentication && !IsAuthenticated(request, "Proxy-Authorization"sv))
         {
@@ -135,164 +164,201 @@ namespace winpx
 
             HttpResponseMessage response(HttpStatusCode::ProxyAuthenticationRequired);
             response.GetHeaders().Add("Proxy-Authenticate", "Basic realm=\"WinPX Proxy\"");
-            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, std::move(response));
+            context.responseHeadSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, response);
         }
         else if (IsSentViaThisProxy(request))
         {
+            context.responseHeadSent = true;
             m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::BadGateway, "Proxy loop detected" });
         }
         else
         {
             if (IEquals(request.GetMethod(), "CONNECT"sv))
             {
-                co_await HandleConnectRequest(client, request);
+                co_await HandleConnectRequest(context, client, request);
             }
             else
             {
-                co_await HandleStandardRequest(client, request);
+                co_await HandleStandardRequest(context, client, request);
             }
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleConnectRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleConnectRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
     {
-        DoTraceMessage(WppTrace, "%!FUNC!: head=%!str!", request.GetRedactedHead());
+        DoTraceMessage(WppTrace, "%!FUNC!: [%u/%u], head=%!str!",
+            client.local_endpoint().port(),
+            client.remote_endpoint().port(),
+            request.GetRedactedHead());
 
         Uri target = request.GetRequestUri();
         if (target.port == 0)
+        {
             target.port = 443;
+        }
 
         auto proxy = m_proxyResolver.ResolveProxy(std::format("https://{}/", target.GetHostAndPort()));
         if (proxy.direct)
         {
-            DoTraceMessage(WppProxy, "CONNECT tunnel via DIRECT connection to '%!str!'", target.ToString());
+            DoTraceMessage(WppVerbose, "CONNECT tunnel via DIRECT connection to '%!str!'", target.ToString());
 
-            asio::ip::tcp::socket remote = co_await ConnectTo(target.host, target.port);
+            asio::ip::tcp::socket server = co_await ConnectTo(target.host, target.port);
+
+            context.responseHeadSent = true;
             m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::OK, "Connection Established" });
-            co_await Tunnel(client, remote, request.GetBufferLeftover(), {});
+
+            co_await Tunnel(client, server, request.GetBufferLeftover(), {});
         }
         else
         {
-            DoTraceMessage(WppProxy, "CONNECT tunnel via upstream proxy '%!str!:%d' to '%!str!'", proxy.host, proxy.port, target.ToString());
+            DoTraceMessage(WppVerbose, "CONNECT tunnel via upstream proxy '%!str!:%d' to '%!str!'", proxy.host, proxy.port, target.ToString());
 
-            HttpRequestMessage upstreamRequest(std::string("CONNECT"sv), target.GetHostAndPort());
-            upstreamRequest.GetHeaders().Add("Host"sv, target.GetHostAndPort());
+            HttpRequestMessage connectRequest("CONNECT", target.GetHostAndPort());
+            connectRequest.GetHeaders().Add("Host"sv, target.GetHostAndPort());
 
-            auto [upstream, response] = co_await ConnectToUpstreamProxy(proxy, std::move(upstreamRequest), true);
-            if (upstream.is_open())
+            auto [server, response] = co_await ConnectToUpstreamProxy(context, client, proxy, std::move(connectRequest));
+            if (GetHttpStatusCategory(response.GetStatusCode()) == HttpStatusCategory::Success)
             {
-                if (response.GetStatusCode() == HttpStatusCode::OK)
-                {
-                    m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::OK, "Connection Established" });
-                    co_await Tunnel(client, upstream, request.GetBufferLeftover(), response.GetBufferLeftover());
-                }
-                else
-                {
-                    m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
-                    co_await ForwardBody(upstream, client, response);
-                }
+                context.responseHeadSent = true;
+                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::OK, "Connection Established" });
+
+                auto result = co_await Tunnel(client, server, request.GetBufferLeftover(), response.GetBufferLeftover());
+                m_proxyStatistics.totalClientBytesSent += result.clientBytesSent;
+                m_proxyStatistics.totalClientBytesReceived += result.clientBytesReceived;
+                m_proxyStatistics.totalUpstreamBytesSent += result.serverBytesSent;
+                m_proxyStatistics.totalUpstreamBytesReceived += result.serverBytesReceived;
             }
             else
             {
-                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, std::move(response));
+                context.responseHeadSent = true;
+                m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
+
+                auto buffer = response.GetBufferLeftover();
+                size_t totalBytes = co_await StreamResponseBody(server, client, buffer, response.GetFraming());
+                m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
+                m_proxyStatistics.totalClientBytesSent += totalBytes;
             }
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleStandardRequest(asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleStandardRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
     {
-        DoTraceMessage(WppTrace, "%!FUNC!: head=%!str!", request.GetRedactedHead());
+        DoTraceMessage(WppTrace, "%!FUNC!: [%u/%u], head=%!str!",
+            client.local_endpoint().port(),
+            client.remote_endpoint().port(),
+            request.GetRedactedHead());
 
         Uri target = GetAbsoluteUrl(request);
 
-        std::string body = co_await ReadBody(client, request);
+        context.framing = request.GetFraming();
+        context.clientBuffer = request.GetBufferLeftover();
 
         HttpRequestMessage forwardedRequest(request.GetMethod(), {});
-        forwardedRequest.GetHeaders().Add(FilterHeaders(request.GetHeaders(), [](auto name) { return !IsHopByHopHeader(name); }));
+        auto connectionOptions = request.GetHeaders().GetListValues("Connection"sv);
+        forwardedRequest.GetHeaders().Add(FilterHeaders(request.GetHeaders(), [&](auto name) {
+            return !IsHopByHopHeader(name) &&
+                   !HasConnectionOption(connectionOptions, name) &&
+                   !IEquals(name, "Content-Length"sv);
+        }));
         forwardedRequest.GetHeaders().Replace("Host"sv, target.GetHostAndPort());
         forwardedRequest.GetHeaders().Replace("Via"sv, CreateViaThisProxy(request));
-        forwardedRequest.GetHeaders().Replace("Content-Length"sv, std::to_string(body.size()));
-        forwardedRequest.SetBody(std::move(body));
+        if (context.framing.chunked)
+        {
+            forwardedRequest.GetHeaders().Replace("Transfer-Encoding"sv, "chunked"sv);
+        }
+        else if (context.framing.contentLength)
+        {
+            forwardedRequest.GetHeaders().Replace("Content-Length"sv, std::to_string(*context.framing.contentLength));
+        }
 
         auto proxy = m_proxyResolver.ResolveProxy(target.ToString());
+        context.strategy = SelectRequestStrategy(request, context.framing, proxy.direct);
+
         if (proxy.direct)
         {
-            DoTraceMessage(WppProxy, "Forwarding via DIRECT connection to '%!str!'", target.ToString());
+            DoTraceMessage(WppVerbose, "Forwarding via DIRECT connection to '%!str!'", target.ToString());
 
             forwardedRequest.SetRequestUri(target.GetPathAndQuery());
             forwardedRequest.GetHeaders().Add("Connection"sv, "close"sv);
 
-            asio::ip::tcp::socket remote = co_await ConnectTo(target.host, target.port);
-            co_await WriteData(remote, forwardedRequest.ToString());
-            co_await RelayDataOneWay(remote, client);
+            asio::ip::tcp::socket server = co_await ConnectTo(target.host, target.port);
+
+            HttpResponseMessage response = co_await SendRequest(context, client, server, forwardedRequest);
+            context.responseHeadSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
+
+            auto totalBytes = co_await RelayDataOneWay(server, client);
+            m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
+            m_proxyStatistics.totalClientBytesSent += totalBytes;
         }
         else
         {
-            DoTraceMessage(WppProxy, "Forwarding via upstream proxy '%!str!:%d' to '%!str!'", proxy.host, proxy.port, target.ToString());
+            DoTraceMessage(WppVerbose, "Forwarding via upstream proxy '%!str!:%d' to '%!str!'", proxy.host, proxy.port, target.ToString());
 
             forwardedRequest.SetRequestUri(target.ToString());
             forwardedRequest.GetHeaders().Add("Connection"sv, "keep-alive"sv);
 
-            bool hasBody = !IEquals(request.GetMethod(), "HEAD"sv);
+            auto [server, response] = co_await ConnectToUpstreamProxy(context, client, proxy, std::move(forwardedRequest));
+            context.responseHeadSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
 
-            auto [upstream, response] = co_await ConnectToUpstreamProxy(proxy, std::move(forwardedRequest), hasBody);
-            if (upstream.is_open())
+            if (!IEquals(request.GetMethod(), "HEAD"sv))
             {
-                m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
-
                 auto statusCode = response.GetStatusCode();
-                if (hasBody && statusCode != HttpStatusCode::NoContent && statusCode != HttpStatusCode::NotModified)
+                if (statusCode != HttpStatusCode::NoContent && statusCode != HttpStatusCode::NotModified)
                 {
-                    co_await ForwardBody(upstream, client, response);
+                    auto buffer = response.GetBufferLeftover();
+                    co_await StreamResponseBody(server, client, buffer, response.GetFraming());
                 }
-            }
-            else
-            {
-                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, std::move(response));
             }
         }
     }
 
-    asio::awaitable<ProxyRequestHandler::ProxyConnection> ProxyRequestHandler::ConnectToUpstreamProxy(const ProxyResolverResult& proxy, HttpRequestMessage request, bool hasBody)
+    asio::awaitable<ProxyRequestHandler::ConnectToUpstreamProxyResult> ProxyRequestHandler::ConnectToUpstreamProxy(
+        RequestContext& context, asio::ip::tcp::socket& client, const ProxyResolverResult& proxy, HttpRequestMessage request)
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!: host=%!str!, port=%u", proxy.host, proxy.port);
+        DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u], host=%!str!, port=%u",
+            client.local_endpoint().port(),
+            client.remote_endpoint().port(),
+            proxy.host,
+            proxy.port);
 
-        asio::ip::tcp::socket upstream = co_await ConnectTo(proxy.host, proxy.port);
+        asio::ip::tcp::socket server = co_await ConnectTo(proxy.host, proxy.port);
 
         std::unique_ptr<ProxyAuthenticationSession> authenticationSession;
         AuthenticationScheme authenticationScheme = AuthenticationScheme::Any;
         bool connectionBound = false;
-        int reconnects = 0;
+        size_t reconnects = 0;
 
         for (size_t round = 0; round < maxProxyAuthenticationRounds; round++)
         {
             asio::error_code ec;
+            bool failed = false;
             HttpResponseMessage response;
 
-            co_await asio::async_write(
-                upstream,
-                asio::buffer(request.ToString()),
-                asio::redirect_error(asio::cancel_after(m_proxyConfiguration.writeTimeout, asio::use_awaitable), ec));
-            if (!ec)
+            try
             {
-                std::string message;
-                auto headSize = co_await asio::async_read_until(
-                    upstream, asio::dynamic_buffer(message, maxHeaderBufferSize),
-                    "\r\n\r\n"sv,
-                    asio::redirect_error(asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable), ec));
-                if (!ec && headSize > 0)
-                {
-                    response.Parse(message, headSize);
-                }
+                response = co_await SendRequest(context, client, server, request);
+            }
+            catch (const asio::system_error& e)
+            {
+                ec = e.code();
+                failed = true;
+            }
+            catch (const std::exception& e)
+            {
+                DoTraceMessage(WppWarning, "Invalid server response: %s", e.what());
+                failed = true;
             }
 
-            if (ec || response.GetStatusCode() == HttpStatusCode::Unknown)
+            if (failed || response.GetStatusCode() == HttpStatusCode::Unknown)
             {
-                DoTraceMessage(WppWarning, "Failed to parse upstream proxy response: %!str!", ec.message());
+                DoTraceMessage(WppWarning, "Failed to parse server response: %!str!", ec.message());
 
-                if (!connectionBound && reconnects++ < 2)
+                if (!connectionBound && !context.requestBodySent && reconnects++ < maxReconnects)
                 {
-                    upstream = co_await ConnectTo(proxy.host, proxy.port);
+                    server = co_await ConnectTo(proxy.host, proxy.port);
                     continue;
                 }
 
@@ -308,19 +374,47 @@ namespace winpx
 
             if (response.GetStatusCode() != HttpStatusCode::ProxyAuthenticationRequired)
             {
-                co_return ProxyConnection(std::move(upstream), std::move(response));
+                co_return ConnectToUpstreamProxyResult(std::move(server), std::move(response));
             }
 
-            if (hasBody)
+            if (!IEquals(request.GetMethod(), "HEAD"sv))
             {
-                response.SetBody(co_await ReadBody(upstream, response));
+                auto buffer = response.GetBufferLeftover();
+                response.SetBody(co_await ReadBody(server, buffer, response.GetFraming()));
+            }
+
+            if (context.requestBodySent)
+            {
+                if (!context.replayBuffer || context.replayBuffer->IsOverflow())
+                {
+                    DoTraceMessage(WppWarning, "Proxy authentication requested after the request body was sent.");
+                    throw HttpError(HttpStatusCode::BadGateway, "Request body cannot be replayed");
+                }
+
+                context.strategy = RequestStrategy::ReplayBody;
+            }
+
+            if (IsConnectionClose(response))
+            {
+                DoTraceMessage(WppVerbose, "Upstream proxy closed the connection after 407, reconnecting.");
+                server = co_await ConnectTo(proxy.host, proxy.port);
+
+                if (connectionBound)
+                {
+                    DoTraceMessage(WppWarning, "Connection-bound authentication interrupted, restarting handshake.");
+                    authenticationSession.reset();
+                    authenticationScheme = AuthenticationScheme::Any;
+                    connectionBound = false;
+                    request.GetHeaders() = FilterHeaders(request.GetHeaders(), [](auto name) { return !IEquals(name, "Proxy-Authorization"sv); });
+                    continue;
+                }
             }
 
             if (authenticationScheme == AuthenticationScheme::Any)
             {
                 AuthenticationSchemes offered = ParseAuthenticationOffer(response);
                 authenticationScheme = offered.Mask(m_proxyConfiguration.allowedAuthenticationSchemes).PickBest();
-                DoTraceMessage(WppVerbose, "Proxy authentication scheme: %!PROXY_AUTHENTICATION_SCHEME! (offered: 0x%X, allowed: 0x%X)",
+                DoTraceMessage(WppVerbose, "Proxy authentication scheme: %!AuthenticationScheme! (offered: %!AuthenticationScheme!, allowed: %!AuthenticationScheme!)",
                     static_cast<int>(authenticationScheme),
                     offered.ToValue(),
                     m_proxyConfiguration.allowedAuthenticationSchemes.ToValue());
@@ -329,22 +423,19 @@ namespace winpx
             if (authenticationScheme == AuthenticationScheme::None)
             {
                 DoTraceMessage(WppWarning, "Cannot authenticate at upstream proxy: No matching authentication scheme.");
-                upstream.close(ec);
-                co_return ProxyConnection(std::move(upstream), std::move(response));
+                throw HttpError(HttpStatusCode::BadGateway, "Upstream proxy authentication failed");
             }
             else if (authenticationScheme == AuthenticationScheme::Basic)
             {
                 if (round > 0)
                 {
                     DoTraceMessage(WppWarning, "Basic proxy authentication failed.");
-                    upstream.close(ec);
-                    co_return ProxyConnection(std::move(upstream), std::move(response));
+                    throw HttpError(HttpStatusCode::BadGateway, "Upstream proxy authentication failed");
                 }
                 else if (!HasBasicCredentials(m_proxyConfiguration))
                 {
                     DoTraceMessage(WppWarning, "Missing basic authentication credentials.");
-                    upstream.close(ec);
-                    co_return ProxyConnection(std::move(upstream), std::move(response));
+                    throw HttpError(HttpStatusCode::BadGateway, "Upstream proxy authentication failed");
                 }
                 else
                 {
@@ -369,8 +460,7 @@ namespace winpx
                 if ((status != SEC_E_OK && status != SEC_I_CONTINUE_NEEDED) || outgoing.empty())
                 {
                     DoTraceMessage(WppWarning, "Authentication handshake failed: %!WINERROR!", status);
-                    upstream.close(ec);
-                    co_return ProxyConnection(std::move(upstream), std::move(response));
+                    throw HttpError(HttpStatusCode::BadGateway, "Upstream proxy authentication failed");
                 }
 
                 request.GetHeaders().Replace("Proxy-Authorization"sv, ToString(authenticationScheme) + " " + Base64::Encode(outgoing));
@@ -380,407 +470,180 @@ namespace winpx
         throw HttpError(HttpStatusCode::BadGateway);
     }
 
-    asio::awaitable<asio::ip::tcp::socket> ProxyRequestHandler::ConnectTo(std::string_view host, uint16_t port)
+    asio::awaitable<HttpResponseMessage> ProxyRequestHandler::SendRequest(RequestContext& context, asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, const HttpRequestMessage& request)
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!: host=%!sv!, port=%u", host, port);
+        DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u -> %u/%u], strategy=%!RequestStrategy!, head=%!str!",
+            client.local_endpoint().port(),
+            client.remote_endpoint().port(),
+            server.local_endpoint().port(),
+            server.remote_endpoint().port(),
+            static_cast<int>(context.strategy),
+            request.GetRedactedHead());
 
-        asio::any_io_executor executor = co_await asio::this_coro::executor;
-        asio::ip::tcp::socket socket(executor);
-        asio::ip::tcp::resolver resolver(executor);
-        asio::ip::tcp::resolver::results_type results = co_await resolver.async_resolve(
-            host,
-            std::to_string(port),
-            asio::cancel_after(m_proxyConfiguration.resolveTimeout, asio::use_awaitable));
-        co_await asio::async_connect(
-            socket,
-            results,
-            asio::cancel_after(m_proxyConfiguration.connectTimeout, asio::use_awaitable));
-        co_return socket;
-    }
+        std::string buffer;
 
-    asio::awaitable<std::string> ProxyRequestHandler::ReadBody(asio::ip::tcp::socket& client, const HttpMessage& message)
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!");
-
-        try
+        switch (context.strategy)
         {
-            auto storage = message.GetBufferLeftover();
-
-            auto contentLength = message.GetHeaders().GetValue("Content-Length"sv);
-            auto transferEncoding = message.GetHeaders().GetValue("Transfer-Encoding"sv);
-            if (contentLength && transferEncoding)
-            {
-                throw HttpError(HttpStatusCode::BadRequest, "Both Content-Length and Transfer-Encoding headers are present.");
-            }
-            else if (contentLength)
-            {
-                co_return co_await ReadData(client, storage, ParseDec<size_t>(*contentLength));
-            }
-            else if (transferEncoding)
-            {
-                if (IEquals(*transferEncoding, "chunked"sv))
-                {
-                    co_return co_await ReadChunkedData(client, storage);
-                }
-                else
-                {
-                    throw HttpError(HttpStatusCode::NotImplemented, "Unsupported transfer encoding.");
-                }
-            }
-            else
-            {
-                co_return std::string();
-            }
+        case RequestStrategy::NoBody:
+        {
+            m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, request.GetHead());
+            co_return co_await ReceiveFinalResponse(server, buffer);
         }
-        catch (const std::exception& e)
+        case RequestStrategy::StreamBody:
         {
-            DoTraceMessage(WppWarning, "Failed to read body: %s", e.what());
-            throw HttpError(HttpStatusCode::BadRequest, e.what());
+            m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, request.GetHead());
+
+            context.requestBodySent = true;
+            size_t totalBytes = co_await StreamRequestBody(client, server, context.clientBuffer, context.framing);
+            m_proxyStatistics.totalClientBytesReceived += totalBytes;
+            m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
+
+            co_return co_await ReceiveFinalResponse(server, buffer);
         }
-    }
-
-    asio::awaitable<void> ProxyRequestHandler::ForwardBody(asio::ip::tcp::socket& upstream, asio::ip::tcp::socket& client, const HttpMessage& message)
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!");
-
-        try
+        case RequestStrategy::StreamAndCaptureBody:
         {
-            auto storage = message.GetBufferLeftover();
+            m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, request.GetHead());
 
-            size_t totalBytes = 0;
+            context.replayBuffer = std::make_unique<HttpReplayBuffer>();
+            context.requestBodySent = true;
+            size_t totalBytes = co_await StreamRequestBody(client, server, context.clientBuffer, context.framing, context.replayBuffer.get());
+            m_proxyStatistics.totalClientBytesReceived += totalBytes;
+            m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
 
-            auto contentLength = message.GetHeaders().GetValue("Content-Length"sv);
-            auto transferEncoding = message.GetHeaders().GetValue("Transfer-Encoding"sv);
-            if (contentLength && transferEncoding)
-            {
-                throw HttpError(HttpStatusCode::BadRequest, "Both Content-Length and Transfer-Encoding headers are present.");
-            }
-            else if (contentLength)
-            {
-                totalBytes = co_await ForwardData(upstream, client, storage, ParseDec<size_t>(*contentLength));
-            }
-            else if (transferEncoding)
-            {
-                if (IEquals(*transferEncoding, "chunked"sv))
-                {
-                    totalBytes = co_await ForwardChunkedData(upstream, client, storage);
-                }
-                else
-                {
-                    throw HttpError(HttpStatusCode::NotImplemented, "Unsupported transfer encoding.");
-                }
-            }
-            else
-            {
-                totalBytes = co_await ForwardData(upstream, client, storage, std::numeric_limits<size_t>::max());
-            }
-
-            m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
-            m_proxyStatistics.totalClientBytesSent += totalBytes;
+            co_return co_await ReceiveFinalResponse(server, buffer);
         }
-        catch (const std::exception& e)
+        case RequestStrategy::ReplayBody:
         {
-            DoTraceMessage(WppWarning, "Failed to forward body: %s", e.what());
-            throw HttpError(HttpStatusCode::BadRequest, e.what());
+            m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, request.GetHead());
+
+            m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, context.replayBuffer->GetData());
+            co_return co_await ReceiveFinalResponse(server, buffer);
+        }
+        case RequestStrategy::ClientExpect:
+        case RequestStrategy::InsertExpect:
+        {
+            std::string head = request.GetHead();
+            if (context.strategy == RequestStrategy::InsertExpect)
+            {
+                head.insert(head.size() - 2, "Expect: 100-continue\r\n"sv);
+            }
+
+            m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, head);
+
+            auto [finalResponse, timedOut] = co_await WaitForContinue(server, buffer);
+            if (finalResponse)
+            {
+                co_return std::move(*finalResponse);
+            }
+
+            if (context.strategy == RequestStrategy::ClientExpect && !context.continueSent)
+            {
+                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, HttpStatusCode::Continue);
+                context.continueSent = true;
+            }
+
+            if (timedOut)
+            {
+                context.replayBuffer = std::make_unique<HttpReplayBuffer>();
+            }
+
+            context.requestBodySent = true;
+            size_t totalBytes = co_await StreamRequestBody(client, server, context.clientBuffer, context.framing, context.replayBuffer.get());
+            m_proxyStatistics.totalClientBytesReceived += totalBytes;
+            m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
+
+            co_return co_await ReceiveFinalResponse(server, buffer);
+        }
+        default:
+            throw HttpError(HttpStatusCode::InternalServerError);
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::Tunnel(asio::ip::tcp::socket& client, asio::ip::tcp::socket& upstream, std::string_view clientLeftover, std::string_view upstreamLeftover)
+    asio::awaitable<ProxyRequestHandler::WaitForContinueResult> ProxyRequestHandler::WaitForContinue(asio::ip::tcp::socket& server, std::string& buffer) const
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!");
-
-        size_t clientBytesSent = 0;
-        size_t upstreamBytesSent = 0;
-
-        if (!clientLeftover.empty())
-        {
-            upstreamBytesSent += co_await WriteData(upstream, clientLeftover);
-        }
-
-        if (!upstreamLeftover.empty())
-        {
-            clientBytesSent += co_await WriteData(client, upstreamLeftover);
-        }
-
-        auto [clientBytesRelayed, serverBytesRelayed] = co_await RelayData(client, upstream);
-
-        m_proxyStatistics.totalClientBytesSent += clientBytesSent + serverBytesRelayed;
-        m_proxyStatistics.totalClientBytesReceived += clientBytesRelayed;
-        m_proxyStatistics.totalUpstreamBytesSent += upstreamBytesSent + clientBytesRelayed;
-        m_proxyStatistics.totalUpstreamBytesReceived += serverBytesRelayed;
-    }
-
-
-    asio::awaitable<std::tuple<size_t, size_t>> ProxyRequestHandler::RelayData(asio::ip::tcp::socket& client, asio::ip::tcp::socket& upstream) const
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!");
-
-        using namespace asio::experimental::awaitable_operators;
-        co_return co_await (RelayDataOneWay(client, upstream) && RelayDataOneWay(upstream, client));
-    }
-
-    asio::awaitable<size_t> ProxyRequestHandler::RelayDataOneWay(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination) const
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!");
-
-        std::vector<char> buffer(maxBufferSize);
-
-        size_t totalBytesRelayed = 0;
-
-        try
-        {
-            while (true)
-            {
-                size_t bytesRead = co_await source.async_read_some(
-                    asio::buffer(buffer),
-                    asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable));
-                co_await asio::async_write(
-                    destination,
-                    asio::buffer(buffer, bytesRead),
-                    asio::cancel_after(m_proxyConfiguration.writeTimeout, asio::use_awaitable));
-                totalBytesRelayed += bytesRead;
-            }
-        }
-        catch (const std::system_error& e)
-        {
-            auto& code = e.code();
-            if (code != asio::error::eof &&
-                code != std::error_code(WSAECONNABORTED, asio::system_category()) &&
-                code != std::error_code(WSAECONNRESET, asio::system_category()))
-            {
-                DoTraceMessage(WppWarning, "Failed to relay data: %s", e.what());
-            }
-        }
-
-        asio::error_code ec;
-        destination.shutdown(asio::socket_base::shutdown_send, ec);
-
-        co_return totalBytesRelayed;
-    }
-
-    asio::awaitable<std::string> ProxyRequestHandler::ReadData(asio::ip::tcp::socket& socket, std::string& storage, size_t contentLength) const
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!: contentLength=%llu", contentLength);
-
-        if (contentLength == 0)
-            co_return std::string();
-
-        std::string result;
-
-        auto buffer = asio::dynamic_buffer(storage, maxBufferSize);
-
-        size_t bytesRemaining = contentLength;
-        while (bytesRemaining > 0)
-        {
-            asio::error_code ec;
-
-            if (buffer.size() == 0)
-            {
-                size_t bytesToRead = std::min(bytesRemaining, maxBufferSize);
-                co_await asio::async_read(
-                    socket,
-                    buffer,
-                    asio::transfer_exactly(bytesToRead),
-                    asio::redirect_error(asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable), ec));
-                if (ec && ec != asio::error::eof)
-                {
-                    throw asio::system_error(ec);
-                }
-            }
-
-            size_t bytesToCopy = std::min(buffer.size(), bytesRemaining);
-            result += storage.substr(0, bytesToCopy);
-            buffer.consume(bytesToCopy);
-            bytesRemaining -= bytesToCopy;
-
-            if (ec == asio::error::eof)
-            {
-                DoTraceMessage(WppWarning, "Failed to read data: %!str!", ec.message());
-                break;
-            }
-        }
-
-        co_return result;
-    }
-
-    asio::awaitable<std::string> ProxyRequestHandler::ReadChunkedData(asio::ip::tcp::socket& socket, std::string& storage) const
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!");
-
-        std::string result;
-
-        auto buffer = asio::dynamic_buffer(storage, maxBufferSize);
+        DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u]", server.local_endpoint().port(), server.remote_endpoint().port());
 
         while (true)
         {
-            auto lineSize = co_await asio::async_read_until(
-                socket,
-                buffer,
-                '\n',
-                asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable));
-            if (lineSize == 0)
-                break;
-
-            size_t chunkSize = ParseChunkSize(std::string_view(storage.data(), lineSize));
-
-            buffer.consume(lineSize);
-
-            result += co_await ReadData(socket, storage, chunkSize);
-
-            lineSize = co_await asio::async_read_until(
-                socket,
-                buffer,
-                '\n',
-                asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable));
-            if (lineSize == 0)
-                break;
-
-            buffer.consume(lineSize);
-
-            if (chunkSize == 0)
+            auto [ec, headSize] = co_await asio::async_read_until(
+                server,
+                asio::dynamic_buffer(buffer, m_proxyConfiguration.httpConfiguration.maxHeadSize),
+                "\r\n\r\n"sv,
+                asio::as_tuple(asio::cancel_after(m_proxyConfiguration.httpConfiguration.expectContinueTimeout, asio::cancellation_type::partial, asio::use_awaitable)));
+            if (ec == asio::error::operation_aborted)
             {
-                break;
+                DoTraceMessage(WppWarning, "No response to 'Expect: 100-continue' within timeout, sending body.");
+                co_return WaitForContinueResult(std::nullopt, true);
             }
-        }
+            else if (ec)
+            {
+                throw asio::system_error(ec);
+            }
 
-        co_return result;
+            HttpResponseMessage response;
+            response.Parse(buffer, headSize);
+
+            auto statusCode = response.GetStatusCode();
+            DoTraceMessage(WppVerbose, "Received '%!HttpStatusCode!' response within timeout.", static_cast<int>(statusCode));
+            if (statusCode == HttpStatusCode::Continue)
+            {
+                co_return WaitForContinueResult(std::nullopt, false);
+            }
+            else if (GetHttpStatusCategory(statusCode) == HttpStatusCategory::Informational && statusCode != HttpStatusCode::SwitchingProtocols)
+            {
+                buffer = response.GetBufferLeftover();
+                continue;
+            }
+
+            DoTraceMessage(WppVerbose, "response=%!str!", response.GetRedactedHead());
+            buffer.clear();
+            co_return WaitForContinueResult(std::move(response), false);
+        }
     }
 
-    asio::awaitable<size_t> ProxyRequestHandler::ForwardData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& storage, size_t contentLength) const
+    asio::awaitable<HttpResponseMessage> ProxyRequestHandler::ReceiveFinalResponse(asio::ip::tcp::socket& server, std::string& buffer) const
     {
-        DoTraceMessage(WppVerbose, "%!FUNC!: contentLength=%llu", contentLength);
+        DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u]", server.local_endpoint().port(), server.remote_endpoint().port());
 
-        if (contentLength == 0)
-            co_return 0;
-
-        auto buffer = asio::dynamic_buffer(storage, maxBufferSize);
-
-        size_t totalBytes = 0;
-        size_t bytesRemaining = contentLength;
-        while (bytesRemaining > 0)
-        {
-            asio::error_code ec;
-
-            if (buffer.size() == 0)
-            {
-                size_t bytesToRead = std::min(bytesRemaining, maxBufferSize);
-                co_await asio::async_read(
-                    source,
-                    buffer,
-                    asio::transfer_exactly(bytesToRead),
-                    asio::redirect_error(asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable), ec));
-                if (ec && ec != asio::error::eof)
-                {
-                    throw asio::system_error(ec);
-                }
-            }
-
-            size_t bytesToWrite = std::min(buffer.size(), bytesRemaining);
-            size_t bytesWritten = co_await asio::async_write(
-                destination,
-                buffer.data(0, bytesToWrite),
-                asio::cancel_after(m_proxyConfiguration.writeTimeout, asio::use_awaitable));
-
-            buffer.consume(bytesWritten);
-            bytesRemaining -= bytesWritten;
-            totalBytes += bytesWritten;
-
-            if (ec == asio::error::eof)
-            {
-                DoTraceMessage(WppWarning, "Failed to read data: %!str!", ec.message());
-                break;
-            }
-        }
-
-        co_return totalBytes;
-    }
-
-    asio::awaitable<size_t> ProxyRequestHandler::ForwardChunkedData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& storage) const
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!");
-
-        auto buffer = asio::dynamic_buffer(storage, maxBufferSize);
-
-        size_t totalBytes = 0;
         while (true)
         {
-            auto lineSize = co_await asio::async_read_until(
-                source,
-                buffer,
-                '\n',
-                asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable));
-            if (lineSize == 0)
-                break;
+            auto headSize = co_await asio::async_read_until(
+                server,
+                asio::dynamic_buffer(buffer, m_proxyConfiguration.httpConfiguration.maxHeadSize),
+                "\r\n\r\n"sv,
+                asio::cancel_after(m_proxyConfiguration.httpConfiguration.readTimeout, asio::use_awaitable));
 
-            size_t chunkSize = ParseChunkSize(std::string_view(storage.data(), lineSize));
+            HttpResponseMessage response;
+            response.Parse(buffer, headSize);
 
-            co_await asio::async_write(
-                destination,
-                buffer.data(0, lineSize),
-                asio::cancel_after(m_proxyConfiguration.writeTimeout, asio::use_awaitable));
-            buffer.consume(lineSize);
-
-            totalBytes += co_await ForwardData(source, destination, storage, chunkSize);
-
-            lineSize = co_await asio::async_read_until(
-                source,
-                buffer,
-                '\n',
-                asio::cancel_after(m_proxyConfiguration.readTimeout, asio::use_awaitable));
-            if (lineSize == 0)
-                break;
-
-            co_await asio::async_write(
-                destination,
-                buffer.data(0, lineSize),
-                asio::cancel_after(m_proxyConfiguration.writeTimeout, asio::use_awaitable));
-            buffer.consume(lineSize);
-
-            if (chunkSize == 0)
+            auto statusCode = response.GetStatusCode();
+            DoTraceMessage(WppVerbose, "Received '%!HttpStatusCode!'.", static_cast<int>(statusCode));
+            if (GetHttpStatusCategory(statusCode) == HttpStatusCategory::Informational && statusCode != HttpStatusCode::SwitchingProtocols)
             {
-                break;
+                buffer = response.GetBufferLeftover();
+                continue;
             }
+
+            DoTraceMessage(WppVerbose, "response=%!str!", response.GetRedactedHead());
+            buffer.clear();
+            co_return response;
         }
-
-        co_return totalBytes;
-    }
-
-    asio::awaitable<size_t> ProxyRequestHandler::WriteData(asio::ip::tcp::socket& socket, std::string_view buffer) const
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!: buffer.size=%llu", buffer.size());
-
-        if (buffer.empty())
-            co_return 0;
-
-        try
-        {
-            co_return co_await asio::async_write(
-                socket,
-                asio::buffer(buffer),
-                asio::cancel_after(m_proxyConfiguration.writeTimeout, asio::use_awaitable));
-        }
-        catch (const std::exception& e)
-        {
-            DoTraceMessage(WppWarning, "Failed to write data: %s", e.what());
-            throw;
-        }
-    }
-
-    asio::awaitable<size_t> ProxyRequestHandler::WriteResponse(asio::ip::tcp::socket& socket, HttpResponseMessage response) const
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!: StatusCode=%u", static_cast<int>(response.GetStatusCode()));
-
-        if (!response.GetHeaders().Contains("Content-Length"))
-        {
-            response.GetHeaders().Add("Content-Length", std::to_string(response.GetBody().size()));
-        }
-
-        co_return co_await WriteData(socket, response.ToString());
     }
 
     bool ProxyRequestHandler::IsRequestToWebServer(const HttpRequestMessage& request) const
     {
-        const auto& target = request.GetRequestUri();
+        if (auto host = request.GetHeaders().GetValue("Host"sv))
+        {
+            return IsRequestToWebServer(Uri(*host));
+        }
+        else
+        {
+            return IsRequestToWebServer(request.GetRequestUri());
+        }
+    }
+
+    bool ProxyRequestHandler::IsRequestToWebServer(const Uri& target) const
+    {
         return IsLocalhost(target.host) && target.port == m_proxyConfiguration.port;
     }
 
@@ -826,35 +689,43 @@ namespace winpx
         }
     }
 
-    size_t ProxyRequestHandler::ParseChunkSize(std::string_view line)
+    ProxyRequestHandler::RequestStrategy ProxyRequestHandler::SelectRequestStrategy(const HttpRequestMessage& request, const HttpMessageFraming& framing, bool direct) const
     {
-        size_t chunkSize = 0;
-        try
+        if (!framing.chunked && framing.contentLength.value_or(0) == 0)
         {
-            if (line.ends_with("\r\n"sv))
+            // Client request has no body (GET, HEAD, CONNECT, Content-Length: 0).
+            // Direct: Send the request head and receive the response.
+            // Proxy: Every upstream proxy authentication attempt sends the complete request head.
+            return RequestStrategy::NoBody;
+        }
+        else if (HasExpectContinue(request))
+        {
+            // Client sent 'Expect: 100-continue'.
+            // Direct: Send the request head and receive the response.
+            // Proxy: Authenticate on head alone, then send '100 Continue' to client and stream body.
+            return RequestStrategy::ClientExpect;
+        }
+        else if (direct)
+        {
+            // Direct connection to the target server, no upstream proxy.
+            // Stream the body immediately, no need to buffer it for authentication.
+            return RequestStrategy::StreamBody;
+        }
+        else
+        {
+            if (framing.contentLength && *framing.contentLength <= m_proxyConfiguration.httpConfiguration.maxBodySizeBeforeProbing)
             {
-                line.remove_suffix(2);
+                // Upstream proxy authentication may be required.
+                // Stream immediately, buffer the body for replay.
+                return RequestStrategy::StreamAndCaptureBody;
             }
-
-            size_t pos = line.find(';');
-            if (pos != std::string_view::npos)
+            else
             {
-                line = TrimEnd(line.substr(0, pos));
+                // Upstream proxy authentication may be required, insert 'Expect: 100-continue'.
+                // Authenticate on head alone, then stream body.
+                return RequestStrategy::InsertExpect;
             }
-
-            chunkSize = ParseHex<size_t>(line);
         }
-        catch (const std::exception&)
-        {
-            throw std::runtime_error("Invalid chunk size");
-        }
-
-        if (chunkSize > maxChunkSize)
-        {
-            throw std::runtime_error("Chunk size exceeds maximum allowed value");
-        }
-
-        return chunkSize;
     }
 
     AuthenticationSchemes ProxyRequestHandler::ParseAuthenticationOffer(const HttpResponseMessage& response)
@@ -940,6 +811,48 @@ namespace winpx
                IEquals(name, "Trailer"sv) ||
                IEquals(name, "Transfer-Encoding"sv) ||
                IEquals(name, "Upgrade"sv);
+    }
+
+    bool ProxyRequestHandler::IsConnectionClose(const HttpMessage& message)
+    {
+        auto options = message.GetHeaders().GetListValues("Connection"sv);
+        if (HasConnectionOption(options, "close"sv))
+        {
+            return true;
+        }
+
+        return message.GetVersion() == 10 && !HasConnectionOption(options, "keep-alive"sv);
+    }
+
+    bool ProxyRequestHandler::HasConnectionOption(const std::vector<std::string_view>& connectionOptions, std::string_view name)
+    {
+        for (auto value : connectionOptions)
+        {
+            if (IEquals(value, name))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool ProxyRequestHandler::HasExpectContinue(const HttpMessage& message)
+    {
+        if (message.GetVersion() == 10)
+        {
+            return false;
+        }
+
+        for (auto value : message.GetHeaders().GetListValues("Expect"sv))
+        {
+            if (IEquals(value, "100-continue"sv))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     bool ProxyRequestHandler::HasBasicCredentials(const ProxyConfiguration& configuration)

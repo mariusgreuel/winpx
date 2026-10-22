@@ -19,7 +19,7 @@ namespace winpx
         m_proxyConfiguration(proxyConfiguration),
         m_servicePrincipalName(servicePrincipalName)
     {
-        DoTraceMessage(WppObject, "%!FUNC!: authenticationScheme=%!PROXY_AUTHENTICATION_SCHEME!, servicePrincipalName='%!str!'", static_cast<int>(authenticationScheme), servicePrincipalName);
+        DoTraceMessage(WppObject, "%!FUNC!: authenticationScheme=%!AuthenticationScheme!, servicePrincipalName='%!str!'", static_cast<int>(authenticationScheme), servicePrincipalName);
 
         AcquireCredentials(authenticationScheme);
     }
