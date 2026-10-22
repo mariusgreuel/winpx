@@ -40,6 +40,7 @@ namespace winpx
             MESSAGE_HANDLER(m_nWmProxyChange, OnProxyChange)
             COMMAND_ID_HANDLER_EX(ID_PROXY_START, OnProxyStart)
             COMMAND_ID_HANDLER_EX(ID_PROXY_STOP, OnProxyStop)
+            COMMAND_ID_HANDLER_EX(ID_PROXY_LOG, OnProxyLog)
             COMMAND_ID_HANDLER_EX(ID_PROXY_OPTIONS, OnProxyOptions)
             COMMAND_ID_HANDLER_EX(ID_PROXY_EXIT, OnProxyExit)
             CHAIN_MSG_MAP_MEMBER(m_notifyIcon)
@@ -58,6 +59,7 @@ namespace winpx
         LRESULT OnProxyChange(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
         void OnProxyStart(UINT uNotifyCode, int nID, HWND hWndCtl);
         void OnProxyStop(UINT uNotifyCode, int nID, HWND hWndCtl);
+        void OnProxyLog(UINT uNotifyCode, int nID, HWND hWndCtl);
         void OnProxyOptions(UINT uNotifyCode, int nID, HWND hWndCtl);
         void OnProxyExit(UINT uNotifyCode, int nID, HWND hWndCtl);
 
@@ -72,6 +74,8 @@ namespace winpx
         void ParseCommandLineArguments();
         void StartProxy();
         void StopProxy();
+        void ShowLogWindow();
+        void HideLogWindow();
         void RegisterProxyChangeNotification();
         void UnregisterProxyChangeNotification();
         void PostMessageToExistingInstance(UINT uMsg, WPARAM wParam = 0, LPARAM lParam = 0);

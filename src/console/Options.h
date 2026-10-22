@@ -14,6 +14,7 @@ namespace winpx
         bool uninstallService = false;
         bool showLicenses = false;
         bool showHelp = false;
+        bool verbose = false;
         std::string serviceName = "WinPX";
         std::string displayName = "WinPX Proxy Server";
     };

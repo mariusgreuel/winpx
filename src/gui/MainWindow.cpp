@@ -12,6 +12,7 @@
 #include "DialogWelcome.h"
 #include "Firewall.h"
 #include <common/ProxyCommandLineParser.h>
+#include <win32/ConsoleLogger.h>
 #include <win32/Environment.h>
 
 namespace winpx
@@ -20,9 +21,9 @@ namespace winpx
     using namespace win32;
 
     template<typename T>
-    static inline T GetWinHttpAddress(const char* pszFunction)
+    static inline T GetLibraryAddress(LPCTSTR pszLibrary, LPCSTR pszFunction)
     {
-        auto hModule = LoadLibraryExW(L"winhttp.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        auto hModule = LoadLibraryExW(pszLibrary, nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
         if (hModule == nullptr)
         {
             return nullptr;
@@ -249,6 +250,22 @@ namespace winpx
         UpdateUserInterface();
     }
 
+    void MainWindow::OnProxyLog(UINT /* uNotifyCode */, int /* nID */, HWND /* hWndCtl */)
+    {
+        DoTraceMessage(WppGui, "%!FUNC!");
+
+        if (!ConsoleLogger::IsEnabled())
+        {
+            ShowLogWindow();
+        }
+        else
+        {
+            HideLogWindow();
+        }
+
+        UpdateUserInterface();
+    }
+
     void MainWindow::OnProxyOptions(UINT /* uNotifyCode */, int /* nID */, HWND /* hWndCtl */)
     {
         DoTraceMessage(WppGui, "%!FUNC!");
@@ -268,9 +285,11 @@ namespace winpx
         DoTraceMessage(WppGui, "%!FUNC!: uMsg=%u", uMsg);
 
         bool isRunning = m_proxy && m_proxy->GetState() == ProxyState::Running;
+        bool isLogEnabled = ConsoleLogger::IsEnabled();
 
         m_notifyIcon.m_hMenu.GetSubMenu(0).EnableMenuItem(ID_PROXY_START, MF_BYCOMMAND | (isRunning ? MF_GRAYED : MF_ENABLED));
         m_notifyIcon.m_hMenu.GetSubMenu(0).EnableMenuItem(ID_PROXY_STOP, MF_BYCOMMAND | (isRunning ? MF_ENABLED : MF_GRAYED));
+        m_notifyIcon.m_hMenu.GetSubMenu(0).CheckMenuItem(ID_PROXY_LOG, MF_BYCOMMAND | (isLogEnabled ? MF_CHECKED : MF_UNCHECKED));
 
         m_notifyIcon.ShowMenu(uMsg);
     }
@@ -431,11 +450,67 @@ namespace winpx
         }
     }
 
+    void MainWindow::ShowLogWindow()
+    {
+        DoTraceMessage(WppVerbose, "%!FUNC!");
+
+        if (HWND hConsole = GetConsoleWindow())
+        {
+            ::ShowWindow(hConsole, SW_SHOW);
+
+            ConsoleLogger::Start();
+        }
+        else
+        {
+            if (!AllocConsole())
+            {
+                DWORD dwError = GetLastError();
+                DoTraceMessage(WppError, "AllocConsole failed: %!WINERROR!", dwError);
+                return;
+            }
+
+            SetConsoleTitle(_T("WinPX Proxy Log"));
+            SetConsoleCP(CP_UTF8);
+            SetConsoleOutputCP(CP_UTF8);
+            SetConsoleCtrlHandler([](DWORD ctrlType) -> BOOL {
+                DoTraceMessage(WppVerbose, "%!FUNC!: ctrlType=%u", ctrlType);
+                return ctrlType == CTRL_C_EVENT ? TRUE : FALSE;
+            },
+                TRUE);
+
+            if (HMENU hMenu = ::GetSystemMenu(GetConsoleWindow(), FALSE))
+            {
+                ::DeleteMenu(hMenu, SC_CLOSE, MF_BYCOMMAND);
+            }
+
+            FILE* dummy;
+            freopen_s(&dummy, "CONOUT$", "w", stdout);
+
+            StopProxy();
+
+            ConsoleLogger::Start();
+
+            StartProxy();
+        }
+    }
+
+    void MainWindow::HideLogWindow()
+    {
+        DoTraceMessage(WppVerbose, "%!FUNC!");
+
+        ConsoleLogger::Stop();
+
+        if (HWND hConsole = GetConsoleWindow())
+        {
+            ::ShowWindow(hConsole, SW_HIDE);
+        }
+    }
+
     void MainWindow::RegisterProxyChangeNotification()
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
 
-        auto pRegister = GetWinHttpAddress<decltype(&WinHttpRegisterProxyChangeNotification)>("WinHttpRegisterProxyChangeNotification");
+        auto pRegister = GetLibraryAddress<decltype(&WinHttpRegisterProxyChangeNotification)>(_T("winhttp.dll"), "WinHttpRegisterProxyChangeNotification");
         if (pRegister == nullptr)
         {
             DoTraceMessage(WppVerbose, "WinHttpRegisterProxyChangeNotification not available.");
@@ -455,7 +530,7 @@ namespace winpx
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
 
-        auto pUnregister = GetWinHttpAddress<decltype(&WinHttpUnregisterProxyChangeNotification)>("WinHttpUnregisterProxyChangeNotification");
+        auto pUnregister = GetLibraryAddress<decltype(&WinHttpUnregisterProxyChangeNotification)>(_T("winhttp.dll"), "WinHttpUnregisterProxyChangeNotification");
         if (pUnregister == nullptr)
         {
             DoTraceMessage(WppVerbose, "WinHttpUnregisterProxyChangeNotification not available.");

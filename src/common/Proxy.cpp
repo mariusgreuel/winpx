@@ -8,7 +8,9 @@
 #include "Proxy.h"
 #include "Proxy.tmh"
 
+#include "Version.h"
 #include <win32/Environment.h>
+#include <win32/Logger.h>
 #include <win32/MitigationPolicy.h>
 
 namespace winpx
@@ -149,12 +151,20 @@ namespace winpx
             static_cast<int>(m_proxyConfiguration.proxyMode),
             static_cast<int>(m_proxyConfiguration.networkMode));
 
+        LOG_INFO("Starting WinPX Proxy v{}.{}.{} ({})",
+            VERSION_MAJOR,
+            VERSION_MINOR,
+            VERSION_PATCH,
+            std::string_view(GIT_COMMIT_HASH).substr(0, 8));
+
         m_state = ProxyState::Starting;
 
         if (m_proxyConfiguration.setEnvironmentVariables)
         {
             SetHttpProxyVariables();
         }
+
+        m_proxyResolver.ReloadSystemSettings();
 
         try
         {
@@ -172,6 +182,7 @@ namespace winpx
         catch (const std::system_error& e)
         {
             DoTraceMessage(WppError, "Failed to create IPv4 acceptor: code=%d, %s", e.code().value(), e.what());
+            LOG_ERROR("Failed to create IPv4 acceptor: code={}, {}", e.code().value(), e.what());
             m_state = ProxyState::Error;
             m_errorCode = e.code();
         }
@@ -192,6 +203,7 @@ namespace winpx
         catch (const std::system_error& e)
         {
             DoTraceMessage(WppError, "Failed to create IPv6 acceptor: code=%d, %s", e.code().value(), e.what());
+            LOG_ERROR("Failed to create IPv6 acceptor: code={}, {}", e.code().value(), e.what());
             m_state = ProxyState::Error;
             m_errorCode = e.code();
         }
@@ -217,6 +229,7 @@ namespace winpx
             catch (const std::system_error& e)
             {
                 DoTraceMessage(WppError, "Failed to create custom acceptor: code=%d, %s", e.code().value(), e.what());
+                LOG_ERROR("Failed to create custom acceptor: code={}, {}", e.code().value(), e.what());
                 m_state = ProxyState::Error;
                 m_errorCode = e.code();
             }
@@ -233,12 +246,14 @@ namespace winpx
         catch (const std::system_error& e)
         {
             DoTraceMessage(WppError, "Failed to create thread pool: code=%d, %s", e.code().value(), e.what());
+            LOG_ERROR("Failed to create thread pool: code={}, {}", e.code().value(), e.what());
             m_state = ProxyState::Error;
             m_errorCode = e.code();
         }
         catch (const std::exception& e)
         {
             DoTraceMessage(WppError, "Failed to create thread pool: %s", e.what());
+            LOG_ERROR("Failed to create thread pool: {}", e.what());
             m_state = ProxyState::Error;
             m_errorCode = std::error_code(EDOM, std::generic_category());
         }
@@ -250,6 +265,8 @@ namespace winpx
 
         if (m_state == ProxyState::Stopped)
             return;
+
+        LOG_INFO("Stopping WinPX Proxy");
 
         try
         {
@@ -268,12 +285,14 @@ namespace winpx
         catch (const std::system_error& e)
         {
             DoTraceMessage(WppError, "Exception: code=%d, %s", e.code().value(), e.what());
+            LOG_ERROR("Failed to stop proxy: code={}, {}", e.code().value(), e.what());
             m_state = ProxyState::Error;
             m_errorCode = e.code();
         }
         catch (const std::exception& e)
         {
             DoTraceMessage(WppError, "Exception: %s", e.what());
+            LOG_ERROR("Failed to stop proxy: {}", e.what());
             m_state = ProxyState::Error;
             m_errorCode = std::error_code(EDOM, std::generic_category());
         }
@@ -332,6 +351,14 @@ namespace winpx
     asio::awaitable<void> Proxy::Listen(asio::ip::tcp::acceptor& acceptor, const char* who)
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: %s", who);
+        if (acceptor.local_endpoint().address().is_v6())
+        {
+            LOG_INFO("Listening on {} address: [{}]:{}", who, acceptor.local_endpoint().address().to_string(), acceptor.local_endpoint().port());
+        }
+        else
+        {
+            LOG_INFO("Listening on {} address: {}:{}", who, acceptor.local_endpoint().address().to_string(), acceptor.local_endpoint().port());
+        }
 
         while (true)
         {
@@ -347,6 +374,8 @@ namespace winpx
             else
             {
                 DoTraceMessage(WppWarning, "async_accept failed: %!str!", ec.message());
+                LOG_WARNING("Failed to accept connection: {}", ec.message());
+
                 asio::steady_timer t(co_await asio::this_coro::executor);
                 t.expires_after(std::chrono::milliseconds(100));
                 co_await t.async_wait(asio::use_awaitable);
@@ -377,6 +406,7 @@ namespace winpx
     void Proxy::CreateThreadPool(uint32_t threadCount)
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: threadCount=%u", threadCount);
+        LOG_INFO("Creating thread pool with {} threads", threadCount);
 
         m_threadPool.reserve(threadCount);
         for (uint32_t i = 0; i < threadCount; i++)

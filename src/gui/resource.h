@@ -69,6 +69,7 @@
 #define ID_PROXY_STOP 32775
 #define ID_PROXY_OPTIONS 32776
 #define ID_PROXY_EXIT 32777
+#define ID_PROXY_LOG 32778
 
 // Next default values for new objects
 //
@@ -76,7 +77,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC 1
 #define _APS_NEXT_RESOURCE_VALUE 207
-#define _APS_NEXT_COMMAND_VALUE 32778
+#define _APS_NEXT_COMMAND_VALUE 32779
 #define _APS_NEXT_CONTROL_VALUE 1604
 #define _APS_NEXT_SYMED_VALUE 110
 #endif

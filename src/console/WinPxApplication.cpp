@@ -14,6 +14,7 @@
 #include <common/Resources.h>
 #include <common/Version.h>
 #include <win32/ConsoleColor.h>
+#include <win32/ConsoleLogger.h>
 #include <win32/Win32Error.h>
 
 namespace winpx
@@ -96,15 +97,18 @@ namespace winpx
         }
         else if (m_options.run)
         {
-            std::cout << "Starting WinPX proxy server..." << std::endl;
+            std::cout << "Starting WinPX proxy server, press CTRL-C to exit..." << std::endl;
+            std::cout << "WinPX proxy serving requests at " << m_proxyConfiguration.GetWinPxProxyUrl() << std::endl;
+
+            if (m_options.verbose)
+            {
+                ConsoleLogger::Start();
+            }
 
             Proxy proxy(m_proxyConfiguration);
             proxy.Start();
             if (proxy.GetState() == ProxyState::Error)
                 throw std::system_error(proxy.GetErrorCode());
-
-            std::cout << "WinPX proxy serving requests via " << m_proxyConfiguration.GetWinPxProxyUrl() << std::endl;
-            std::cout << "Press CTRL-C to exit." << std::endl;
 
             proxy.WaitForIoShutdown();
             proxy.Stop();
@@ -123,6 +127,7 @@ namespace winpx
         parser.AddOption("display-name"sv, m_options.displayName);
         parser.AddOption("licenses"sv, m_options.showLicenses);
         parser.AddOption("help"sv, m_options.showHelp);
+        parser.AddOption("verbose"sv, m_options.verbose);
         parser.AddAlias("r"sv, "run"sv);
         parser.AddAlias("h"sv, "help"sv);
         parser.AddAlias("?"sv, "help"sv);
@@ -217,8 +222,8 @@ namespace winpx
         std::cout << std::endl;
         std::cout << "Options:" << std::endl;
         std::cout << "  --run, -r                    start WinPX proxy server" << std::endl;
-        std::cout << "  --port=PORT, -p=PORT         set the PORT that WinPX listens on" << std::endl;
-        std::cout << "  --mode=MODE, -m=MODE         select the proxy MODE: system, pac, wpad, manual" << std::endl;
+        std::cout << "  --port=PORT, -p=PORT         set the PORT that WinPX listens on (default: 3128)" << std::endl;
+        std::cout << "  --mode=MODE, -m=MODE         select the proxy MODE: system, pac, wpad, manual (default: system)" << std::endl;
         std::cout << "  --pac-url=URL                set the proxy auto-config URL" << std::endl;
         std::cout << "  --http-proxy=HOST:PORT       set the upstream proxy HOST and PORT used for HTTP requests" << std::endl;
         std::cout << "  --https-proxy=HOST:PORT      set the upstream proxy HOST and PORT used for HTTPS requests" << std::endl;

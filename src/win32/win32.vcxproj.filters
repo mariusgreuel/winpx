@@ -70,6 +70,12 @@
     <ClCompile Include="StartupTask.cpp">
       <Filter>1 Win32</Filter>
     </ClCompile>
+    <ClCompile Include="ConsoleLogger.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
+    <ClCompile Include="Logger.cpp">
+      <Filter>1 Win32</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Base64.h">
@@ -137,6 +143,12 @@
     </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="StartupTask.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsoleLogger.h">
+      <Filter>1 Win32</Filter>
+    </ClInclude>
+    <ClInclude Include="Logger.h">
       <Filter>1 Win32</Filter>
     </ClInclude>
   </ItemGroup>

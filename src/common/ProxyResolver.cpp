@@ -11,6 +11,7 @@
 #include "HttpHelper.h"
 #include "StringHelper.h"
 #include "Uri.h"
+#include <win32/Logger.h>
 #include <win32/Unicode.h>
 #include <win32/Win32Error.h>
 
@@ -24,7 +25,6 @@ namespace winpx
     {
         DoTraceMessage(WppObject, "%!FUNC!");
 
-        ReloadSystemSettings();
         OpenSession();
     }
 
@@ -304,33 +304,41 @@ namespace winpx
             if (!systemProxyConfiguration->autoConfigUrl.empty())
             {
                 DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using PAC URL '%!str!'.", systemProxyConfiguration->autoConfigUrl);
+                LOG_INFO("Using proxy auto-configuration (PAC) URL: {}", systemProxyConfiguration->autoConfigUrl);
             }
             else if (!systemProxyConfiguration->proxy.empty())
             {
                 DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using proxy URL '%!str!'.", systemProxyConfiguration->proxy);
+                LOG_INFO("Using manual proxy configuration: {}", systemProxyConfiguration->proxy);
             }
             else if (systemProxyConfiguration->autoDetect)
             {
                 DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using WPAD.");
+                LOG_INFO("Using proxy auto-detect (WPAD)");
             }
             else
             {
                 DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using 'DIRECT'.");
+                LOG_INFO("Using direct connection (no proxy)");
             }
             break;
         case ProxyMode::Direct:
             DoTraceMessage(WppVerbose, "Proxy mode set to 'Direct', using DIRECT.");
+            LOG_INFO("Using direct connection (no proxy)");
             break;
         case ProxyMode::Manual:
             DoTraceMessage(WppVerbose, "Proxy mode set to 'Manual', using proxy URL HTTP='%!str!' and HTTPS='%!str!'.",
                 m_proxyConfiguration.httpProxyUrl,
                 m_proxyConfiguration.httpsProxyUrl);
+            LOG_INFO("Using manual proxy configuration: HTTP='{}', HTTPS='{}'", m_proxyConfiguration.httpProxyUrl, m_proxyConfiguration.httpsProxyUrl);
             break;
         case ProxyMode::AutoConfig:
             DoTraceMessage(WppVerbose, "Proxy mode set to 'AutoConfig', using PAC URL '%!str!'.", m_proxyConfiguration.autoConfigUrl);
+            LOG_INFO("Using proxy auto-configuration (PAC) URL: {}", m_proxyConfiguration.autoConfigUrl);
             break;
         case ProxyMode::AutoDetect:
             DoTraceMessage(WppVerbose, "Proxy mode set to 'AutoDetect', using WPAD.");
+            LOG_INFO("Using proxy auto-detect (WPAD)");
             break;
         default:
             throw std::invalid_argument("Invalid proxy mode.");
