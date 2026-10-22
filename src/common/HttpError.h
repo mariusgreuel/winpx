@@ -6,6 +6,9 @@
 #pragma once
 #include "HttpStatusCode.h"
 
+#include <exception>
+#include <string>
+
 namespace winpx
 {
     class HttpError : public std::exception
