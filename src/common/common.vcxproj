@@ -232,6 +232,7 @@
     <ClInclude Include="AuthenticationSchemes.h" />
     <ClInclude Include="CommandLineParser.h" />
     <ClInclude Include="HttpHeaders.h" />
+    <ClInclude Include="HttpMessageFraming.h" />
     <ClInclude Include="HttpWebRequest.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Resources.h" />

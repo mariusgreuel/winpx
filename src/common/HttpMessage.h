@@ -5,6 +5,7 @@
 
 #pragma once
 #include "HttpHeaders.h"
+#include "HttpMessageFraming.h"
 
 #include <cstdint>
 #include <string>
@@ -27,6 +28,8 @@ namespace winpx
 
         HttpHeaders& GetHeaders();
         const HttpHeaders& GetHeaders() const;
+
+        HttpMessageFraming GetFraming() const;
 
     protected:
         void ParseHeaders(std::string_view headers);

@@ -170,6 +170,9 @@
     <ClInclude Include="StringHelper.h">
       <Filter>3 Misc</Filter>
     </ClInclude>
+    <ClInclude Include="HttpMessageFraming.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="LocalWpp.ini" />

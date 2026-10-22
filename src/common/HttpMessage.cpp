@@ -77,6 +77,62 @@ namespace winpx
         return m_headers;
     }
 
+    HttpMessageFraming HttpMessage::GetFraming() const
+    {
+        auto contentLengths = m_headers.GetListValues("Content-Length"sv);
+        auto transferEncodings = m_headers.GetListValues("Transfer-Encoding"sv);
+
+        if (!transferEncodings.empty())
+        {
+            if (!contentLengths.empty())
+            {
+                throw HttpError(HttpStatusCode::BadRequest, "Both Content-Length and Transfer-Encoding headers are present");
+            }
+
+            if (m_version == 10)
+            {
+                throw HttpError(HttpStatusCode::BadRequest, "Transfer-Encoding is not allowed in HTTP/1.0 requests");
+            }
+
+            if (transferEncodings.size() != 1 || !IEquals(transferEncodings[0], "chunked"sv))
+            {
+                throw HttpError(HttpStatusCode::BadRequest, "Unsupported transfer encoding");
+            }
+
+            return { true, std::nullopt };
+        }
+        else if (!contentLengths.empty())
+        {
+            std::optional<size_t> contentLength;
+
+            for (auto value : contentLengths)
+            {
+                size_t length = 0;
+                try
+                {
+                    length = ParseDec<size_t>(value);
+                }
+                catch (const std::exception&)
+                {
+                    throw HttpError(HttpStatusCode::BadRequest, "Invalid Content-Length header.");
+                }
+
+                if (contentLength && *contentLength != length)
+                {
+                    throw HttpError(HttpStatusCode::BadRequest, "Conflicting Content-Length headers.");
+                }
+
+                contentLength = length;
+            }
+
+            return { false, contentLength };
+        }
+        else
+        {
+            return { false, std::nullopt };
+        }
+    }
+
     void HttpMessage::ParseHeaders(std::string_view headers)
     {
         size_t offset = 0;
