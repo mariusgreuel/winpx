@@ -14,10 +14,14 @@ namespace winpx
 {
     using namespace std::literals::string_view_literals;
 
-    HttpResponseMessage::HttpResponseMessage(HttpStatusCode statusCode, std::optional<std::string> reasonPhrase) :
+    HttpResponseMessage::HttpResponseMessage(HttpStatusCode statusCode, std::optional<std::string> reasonPhrase, const std::vector<HttpHeader>& headers) :
         m_statusCode(statusCode),
         m_reasonPhrase(std::move(reasonPhrase))
     {
+        for (const auto& header : headers)
+        {
+            m_headers.Add(header);
+        }
     }
 
     HttpStatusCode HttpResponseMessage::GetStatusCode() const

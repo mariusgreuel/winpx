@@ -43,7 +43,7 @@ namespace winpx
             HttpMessageFraming framing;
             RequestStrategy strategy = RequestStrategy::NoBody;
             bool requestBodySent = false;
-            bool responseHeadSent = false;
+            bool responseSent = false;
             bool continueSent = false;
         };
 
@@ -81,7 +81,6 @@ namespace winpx
         static AuthenticationSchemes ParseAuthenticationOffer(const HttpResponseMessage& response);
         static std::vector<std::byte> ParseAuthenticationToken(const HttpResponseMessage& response, std::string_view scheme);
         static std::tuple<std::string_view, std::string_view> SplitAuthenticationHeader(std::string_view value);
-        static HttpHeaders FilterHeaders(const HttpHeaders& headers, std::function<bool(std::string_view name)> predicate);
         static bool IsHopByHopHeader(std::string_view name);
         static bool IsConnectionClose(const HttpMessage& message);
         static bool HasConnectionOption(const std::vector<std::string_view>& connectionOptions, std::string_view name);

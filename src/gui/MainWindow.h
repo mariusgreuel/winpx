@@ -76,9 +76,9 @@ namespace winpx
         void StopProxy();
         void ShowLogWindow();
         void HideLogWindow();
+        void PostMessageToExistingInstance(UINT uMsg, WPARAM wParam = 0, LPARAM lParam = 0);
         void RegisterProxyChangeNotification();
         void UnregisterProxyChangeNotification();
-        void PostMessageToExistingInstance(UINT uMsg, WPARAM wParam = 0, LPARAM lParam = 0);
         static void WINAPI ProxyChangeCallback(ULONGLONG ullFlags, PVOID pvContext);
 
     private:

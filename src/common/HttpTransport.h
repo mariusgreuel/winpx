@@ -7,7 +7,6 @@
 #include "HttpConfiguration.h"
 #include "HttpMessageFraming.h"
 #include "HttpReplayBuffer.h"
-#include "HttpResponseMessage.h"
 
 #include <asio/awaitable.hpp>
 #include <asio/ip/tcp.hpp>
@@ -43,7 +42,6 @@ namespace winpx
         asio::awaitable<std::string> ReadBody(asio::ip::tcp::socket& socket, std::string& buffer, const HttpMessageFraming& framing) const;
 
         asio::awaitable<size_t> WriteData(asio::ip::tcp::socket& socket, std::string_view buffer) const;
-        asio::awaitable<size_t> WriteResponse(asio::ip::tcp::socket& socket, const HttpResponseMessage& response) const;
 
         asio::awaitable<size_t> StreamData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, size_t length, HttpReplayBuffer* replayBuffer = nullptr) const;
         asio::awaitable<size_t> StreamChunkedData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, HttpReplayBuffer* replayBuffer = nullptr) const;

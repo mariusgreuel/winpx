@@ -132,7 +132,7 @@ namespace win32
 
     DWORD Service::ControlHandler(DWORD dwControl, DWORD dwEventType, LPVOID /* lpEventData */)
     {
-        DoTraceMessage(WppService, "%!FUNC!: dwControl=%!SERVICE_CONTROL_CODE!, dwEventType=%u", dwControl, dwEventType);
+        DoTraceMessage(WppService, "%!FUNC!: dwControl=%!ServiceControlCode!, dwEventType=%u", dwControl, dwEventType);
 
         try
         {
@@ -191,7 +191,7 @@ namespace win32
 
     void Service::ReportStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint)
     {
-        DoTraceMessage(WppService, "%!FUNC!: dwCurrentState=%!SERVICE_STATUS_CODE!, dwWin32ExitCode=%!WINERROR!, dwWaitHint=%u", dwCurrentState, dwWin32ExitCode, dwWaitHint);
+        DoTraceMessage(WppService, "%!FUNC!: dwCurrentState=%!ServiceStatusCode!, dwWin32ExitCode=%!WINERROR!, dwWaitHint=%u", dwCurrentState, dwWin32ExitCode, dwWaitHint);
 
         std::scoped_lock lock(m_statusMutex);
 

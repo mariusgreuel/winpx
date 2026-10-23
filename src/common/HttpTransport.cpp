@@ -253,16 +253,6 @@ namespace winpx
         }
     }
 
-    asio::awaitable<size_t> HttpTransport::WriteResponse(asio::ip::tcp::socket& socket, const HttpResponseMessage& response) const
-    {
-        DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u], StatusCode=%!HttpStatusCode!",
-            socket.local_endpoint().port(),
-            socket.remote_endpoint().port(),
-            static_cast<int>(response.GetStatusCode()));
-
-        co_return co_await WriteData(socket, response.ToString());
-    }
-
     asio::awaitable<size_t> HttpTransport::StreamData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, size_t length, HttpReplayBuffer* replayBuffer) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u -> %u/%u], length=%Iu",

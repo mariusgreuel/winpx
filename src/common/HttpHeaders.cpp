@@ -16,6 +16,11 @@ namespace winpx
         m_headers.emplace_back(HttpHeader{ name, value });
     }
 
+    void HttpHeaders::Add(const HttpHeader& header)
+    {
+        m_headers.push_back(header);
+    }
+
     void HttpHeaders::Add(const HttpHeaders& headers)
     {
         for (const auto& header : headers.m_headers)
@@ -118,6 +123,21 @@ namespace winpx
         }
 
         return values;
+    }
+
+    HttpHeaders HttpHeaders::Select(std::function<bool(std::string_view name)> predicate) const
+    {
+        HttpHeaders result;
+
+        for (const auto& header : m_headers)
+        {
+            if (predicate(header.name))
+            {
+                result.Add(header.name, header.value);
+            }
+        }
+
+        return result;
     }
 
     std::string HttpHeaders::ToString() const

@@ -6,6 +6,7 @@
 #pragma once
 #include "HttpHeader.h"
 
+#include <functional>
 #include <optional>
 #include <vector>
 
@@ -20,6 +21,7 @@ namespace winpx
         auto end() const { return m_headers.end(); }
 
         void Add(std::string_view name, std::string_view value);
+        void Add(const HttpHeader& header);
         void Add(const HttpHeaders& headers);
         void Replace(std::string_view name, std::string_view value);
         size_t GetCount() const;
@@ -27,6 +29,7 @@ namespace winpx
         std::optional<std::string_view> GetValue(std::string_view name) const;
         std::vector<std::string_view> GetValues(std::string_view name) const;
         std::vector<std::string_view> GetListValues(std::string_view name) const;
+        HttpHeaders Select(std::function<bool(std::string_view name)> predicate) const;
 
         std::string ToString() const;
 

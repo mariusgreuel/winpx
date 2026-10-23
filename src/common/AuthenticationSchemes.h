@@ -20,6 +20,16 @@ namespace winpx
         Any = 5,
     };
 
+    enum class AuthenticationSchemeFlags
+    {
+        None = 0,
+        Basic = 1 << 1,
+        Digest = 1 << 2,
+        Ntlm = 1 << 3,
+        Negotiate = 1 << 4,
+        Any = 1 << 5,
+    };
+
     class AuthenticationSchemes
     {
     public:

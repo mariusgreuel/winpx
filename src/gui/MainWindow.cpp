@@ -506,6 +506,15 @@ namespace winpx
         }
     }
 
+    void MainWindow::PostMessageToExistingInstance(UINT uMsg, WPARAM wParam, LPARAM lParam)
+    {
+        CWindow hWnd = FindWindow(GetWndClassInfo().m_wc.lpszClassName, nullptr);
+        if (hWnd)
+        {
+            hWnd.PostMessage(uMsg, wParam, lParam);
+        }
+    }
+
     void MainWindow::RegisterProxyChangeNotification()
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
@@ -542,15 +551,6 @@ namespace winpx
                 pUnregister(m_hProxyChangeRegistration);
                 m_hProxyChangeRegistration = nullptr;
             }
-        }
-    }
-
-    void MainWindow::PostMessageToExistingInstance(UINT uMsg, WPARAM wParam, LPARAM lParam)
-    {
-        CWindow hWnd = FindWindow(GetWndClassInfo().m_wc.lpszClassName, nullptr);
-        if (hWnd)
-        {
-            hWnd.PostMessage(uMsg, wParam, lParam);
         }
     }
 

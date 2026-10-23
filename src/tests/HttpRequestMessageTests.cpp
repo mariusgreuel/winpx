@@ -57,7 +57,7 @@ namespace UnitTests
     TEST_F(HttpRequestMessageTest, Parse_RequestLineNoHeader)
     {
         Parse("GET http://example.com/ HTTP/1.1\r\n\r\n"sv);
-        ASSERT_EQ(m_request.GetHeaders().GetCount(), 0);
+        ASSERT_EQ(m_request.GetHeaders().GetCount(), 0u);
     };
 
     TEST_F(HttpRequestMessageTest, Parse_RequestLineOneHeader)

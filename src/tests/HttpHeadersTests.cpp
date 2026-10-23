@@ -31,7 +31,7 @@ namespace UnitTests
 
     TEST_F(HttpHeadersTest, GetCount)
     {
-        ASSERT_EQ(GetCount(), 9);
+        ASSERT_EQ(GetCount(), 9u);
     };
 
     TEST_F(HttpHeadersTest, Contains)
@@ -69,6 +69,12 @@ namespace UnitTests
         ASSERT_EQ(GetListValues("d"sv), (std::vector<std::string_view>{ "vd1"sv, "vd2"sv, "vd3"sv, "vd4"sv }));
         ASSERT_TRUE(GetListValues("x"sv).empty());
         EXPECT_EQ(GetListValues("e"), (std::vector<std::string_view>{ "", "5", "", "", "5", "" }));
+    };
+
+    TEST_F(HttpHeadersTest, Select)
+    {
+        ASSERT_EQ(Select([](std::string_view name) { return name == "c"sv; }).GetCount(), 2u);
+        ASSERT_EQ(Select([](std::string_view name) { return name != "c"sv; }).GetCount(), 7u);
     };
 
     TEST_F(HttpHeadersTest, NameIsCaseInsensitive)

@@ -13,7 +13,7 @@ namespace winpx
     {
     public:
         HttpResponseMessage() = default;
-        HttpResponseMessage(HttpStatusCode statusCode, std::optional<std::string> reasonPhrase = std::nullopt);
+        HttpResponseMessage(HttpStatusCode statusCode, std::optional<std::string> reasonPhrase = std::nullopt, const std::vector<HttpHeader>& headers = {});
 
         HttpResponseMessage(const HttpResponseMessage&) = delete;
         HttpResponseMessage& operator=(const HttpResponseMessage&) = delete;

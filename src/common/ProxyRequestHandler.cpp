@@ -144,14 +144,17 @@ namespace winpx
             m_proxyStatistics.errors += 1;
         }
 
-        if (httpError && !context.responseHeadSent && client.is_open())
+        if (httpError && !context.responseSent && client.is_open())
         {
             try
             {
-                HttpResponseMessage response(httpError->GetStatusCode(), httpError->GetReasonPhrase());
-                response.GetHeaders().Add("Connection"sv, "close"sv);
+                const HttpResponseMessage response(httpError->GetStatusCode(), httpError->GetReasonPhrase(),
+                    {
+                        { "Content-Length"sv, "0"sv },
+                        { "Connection"sv, "close"sv },
+                    });
                 LOG_WARNING("{} Writing response: {}", context, response.GetStatusLine());
-                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, response);
+                m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
             }
             catch (const std::exception& e)
             {
@@ -186,18 +189,22 @@ namespace winpx
             DoTraceMessage(WppWarning, "Unauthorized request: '%!str!'", request.GetRequestLine());
             LOG_WARNING("{} Unauthorized request: {}", context, request.GetRequestLine());
 
-            HttpResponseMessage response(HttpStatusCode::Unauthorized);
-            response.GetHeaders().Add("WWW-Authenticate", "Basic realm=\"WinPX Proxy\"");
-            context.responseHeadSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, response);
+            static const HttpResponseMessage response(HttpStatusCode::Unauthorized, std::nullopt,
+                {
+                    { "Content-Length"sv, "0"sv },
+                    { "WWW-Authenticate"sv, "Basic realm=\"WinPX Proxy\""sv },
+                });
+            LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
+            context.responseSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
         }
         else
         {
             WebServer webServer(m_proxyConfiguration, m_proxyStatistics);
             auto response = webServer.ProcessRequest(request);
             LOG_INFO("{} Writing response from web-server: {}", context, response.GetStatusLine());
-            context.responseHeadSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, response);
+            context.responseSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
         }
     }
 
@@ -208,16 +215,28 @@ namespace winpx
             DoTraceMessage(WppWarning, "Unauthorized request: '%!str!'", request.GetRequestLine());
             LOG_WARNING("{} Unauthorized request: {}", context, request.GetRequestLine());
 
-            HttpResponseMessage response(HttpStatusCode::ProxyAuthenticationRequired);
-            response.GetHeaders().Add("Proxy-Authenticate", "Basic realm=\"WinPX Proxy\"");
-            context.responseHeadSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, response);
+            static const HttpResponseMessage response(HttpStatusCode::ProxyAuthenticationRequired, std::nullopt,
+                {
+                    { "Content-Length"sv, "0"sv },
+                    { "Proxy-Authenticate"sv, "Basic realm=\"WinPX Proxy\""sv },
+                });
+            LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
+            context.responseSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
         }
         else if (IsSentViaThisProxy(request))
         {
+            DoTraceMessage(WppWarning, "Proxy loop detected: '%!str!'", request.GetRequestLine());
             LOG_WARNING("{} Proxy loop detected: {}", context, request.GetRequestLine());
-            context.responseHeadSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::BadGateway, "Proxy loop detected" });
+
+            static const HttpResponseMessage response(HttpStatusCode::BadGateway, "Proxy loop detected",
+                {
+                    { "Content-Length"sv, "0"sv },
+                    { "Connection"sv, "close"sv },
+                });
+            LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
+            context.responseSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
         }
         else
         {
@@ -253,9 +272,10 @@ namespace winpx
             LOG_INFO("{} Creating direct connection to '{}'", context, target.GetHostAndPort());
             asio::ip::tcp::socket server = co_await ConnectTo(target.host, target.port);
 
-            LOG_INFO("{} Writing response: HTTP/1.1 200 Connection Established", context);
-            context.responseHeadSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::OK, "Connection Established" });
+            static const HttpResponseMessage connectionEstablished(HttpStatusCode::OK, "Connection Established");
+            LOG_INFO("{} Writing response: {}", context, connectionEstablished.GetStatusLine());
+            context.responseSent = true;
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, connectionEstablished.ToString());
 
             LOG_INFO("{} Creating tunnel", context);
             co_await Tunnel(client, server, request.GetBufferLeftover(), {});
@@ -270,9 +290,10 @@ namespace winpx
             auto [server, response] = co_await ConnectToUpstreamProxy(context, client, proxy, std::move(connectRequest));
             if (GetHttpStatusCategory(response.GetStatusCode()) == HttpStatusCategory::Success)
             {
-                LOG_INFO("{} Writing response: HTTP/1.1 200 Connection Established", context);
-                context.responseHeadSent = true;
-                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, { HttpStatusCode::OK, "Connection Established" });
+                static const HttpResponseMessage connectionEstablished(HttpStatusCode::OK, "Connection Established");
+                LOG_INFO("{} Writing response: {}", context, connectionEstablished.GetStatusLine());
+                context.responseSent = true;
+                m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, connectionEstablished.ToString());
 
                 LOG_INFO("{} Creating tunnel", context);
                 auto result = co_await Tunnel(client, server, request.GetBufferLeftover(), response.GetBufferLeftover());
@@ -284,7 +305,7 @@ namespace winpx
             else
             {
                 LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
-                context.responseHeadSent = true;
+                context.responseSent = true;
                 m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
 
                 LOG_INFO("{} Streaming response body: {}", context, response.GetFraming());
@@ -310,7 +331,7 @@ namespace winpx
 
         HttpRequestMessage forwardedRequest(request.GetMethod(), {});
         auto connectionOptions = request.GetHeaders().GetListValues("Connection"sv);
-        forwardedRequest.GetHeaders().Add(FilterHeaders(request.GetHeaders(), [&](auto name) {
+        forwardedRequest.GetHeaders().Add(request.GetHeaders().Select([&](auto name) {
             return !IsHopByHopHeader(name) &&
                    !HasConnectionOption(connectionOptions, name) &&
                    !IEquals(name, "Content-Length"sv);
@@ -340,7 +361,7 @@ namespace winpx
             asio::ip::tcp::socket server = co_await ConnectTo(target.host, target.port);
 
             HttpResponseMessage response = co_await SendRequest(context, client, server, forwardedRequest);
-            context.responseHeadSent = true;
+            context.responseSent = true;
             m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
 
             LOG_INFO("{} Relaying response", context);
@@ -356,7 +377,7 @@ namespace winpx
             forwardedRequest.GetHeaders().Add("Connection"sv, "keep-alive"sv);
 
             auto [server, response] = co_await ConnectToUpstreamProxy(context, client, proxy, std::move(forwardedRequest));
-            context.responseHeadSent = true;
+            context.responseSent = true;
             m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
 
             if (!IEquals(request.GetMethod(), "HEAD"sv))
@@ -466,7 +487,7 @@ namespace winpx
                     authenticationSession.reset();
                     authenticationScheme = AuthenticationScheme::Any;
                     connectionBound = false;
-                    request.GetHeaders() = FilterHeaders(request.GetHeaders(), [](auto name) { return !IEquals(name, "Proxy-Authorization"sv); });
+                    request.GetHeaders() = request.GetHeaders().Select([](auto name) { return !IEquals(name, "Proxy-Authorization"sv); });
                     continue;
                 }
             }
@@ -475,7 +496,7 @@ namespace winpx
             {
                 AuthenticationSchemes offered = ParseAuthenticationOffer(response);
                 authenticationScheme = offered.Mask(m_proxyConfiguration.allowedAuthenticationSchemes).PickBest();
-                DoTraceMessage(WppVerbose, "Proxy authentication scheme: %!AuthenticationScheme! (offered: %!AuthenticationScheme!, allowed: %!AuthenticationScheme!)",
+                DoTraceMessage(WppVerbose, "Proxy authentication scheme: %!AuthenticationScheme! (offered: %!AuthenticationSchemeFlags!, allowed: %!AuthenticationSchemeFlags!)",
                     static_cast<int>(authenticationScheme),
                     offered.ToValue(),
                     m_proxyConfiguration.allowedAuthenticationSchemes.ToValue());
@@ -607,8 +628,9 @@ namespace winpx
 
             if (context.strategy == RequestStrategy::ClientExpect && !context.continueSent)
             {
-                LOG_INFO("{} Writing response: HTTP/1.1 100 Continue", context);
-                m_proxyStatistics.totalClientBytesSent += co_await WriteResponse(client, HttpStatusCode::Continue);
+                static const HttpResponseMessage response(HttpStatusCode::Continue);
+                LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
+                m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
                 context.continueSent = true;
             }
 
@@ -856,21 +878,6 @@ namespace winpx
         }
     }
 
-    HttpHeaders ProxyRequestHandler::FilterHeaders(const HttpHeaders& headers, std::function<bool(std::string_view name)> predicate)
-    {
-        HttpHeaders result;
-
-        for (const auto& header : headers)
-        {
-            if (predicate(header.name))
-            {
-                result.Add(header.name, header.value);
-            }
-        }
-
-        return result;
-    }
-
     bool ProxyRequestHandler::IsHopByHopHeader(std::string_view name)
     {
         return IEquals(name, "Connection"sv) ||
@@ -930,4 +937,7 @@ namespace winpx
     {
         return !configuration.gatewayUsername.empty();
     }
+
+    INCLUDE_IN_PDB(AuthenticationScheme);
+    INCLUDE_IN_PDB(AuthenticationSchemeFlags);
 }
