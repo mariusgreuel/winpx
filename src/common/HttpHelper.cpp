@@ -110,6 +110,7 @@ namespace winpx
         };
 
         redactHeaderEndingWith("Cookie"sv);
+        redactHeaderEndingWith("Authenticate"sv);
         redactHeaderEndingWith("Authorization"sv);
         redactHeaderEndingWith("Api-Key"sv);
 #endif
