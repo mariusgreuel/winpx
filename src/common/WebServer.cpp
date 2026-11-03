@@ -42,14 +42,11 @@ namespace winpx
         {
             if (IEquals(request.GetMethod(), "GET"sv))
             {
-                auto response = GetResource(request);
-                response.GetHeaders().Add("Content-Length"sv, std::to_string(response.GetBody().size()));
-                return response;
+                return GetResource(request);
             }
             else if (IEquals(request.GetMethod(), "HEAD"sv))
             {
                 auto response = GetResource(request);
-                response.GetHeaders().Add("Content-Length"sv, std::to_string(response.GetBody().size()));
                 response.SetBody({});
                 return response;
             }
@@ -187,6 +184,8 @@ function FindProxyForURL(url, host) {{
         }
 
         response.GetHeaders().Add("Content-Type"sv, contentType);
+        response.GetHeaders().Add("Content-Length"sv, std::to_string(content.size()));
+        response.GetHeaders().Add("Connection"sv, "close"sv);
         response.SetBody(std::move(content));
         return response;
     }
