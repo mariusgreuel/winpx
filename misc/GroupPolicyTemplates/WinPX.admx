@@ -211,6 +211,13 @@
         <decimal id="ConnectTimeout" valueName="ConnectTimeout" minValue="1000" maxValue="3600000" />
       </elements>
     </policy>
+    <policy name="KeepAliveTimeout" class="Both" displayName="$(string.KeepAliveTimeout)" explainText="$(string.KeepAliveTimeout_Help)" presentation="$(presentation.KeepAliveTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="KeepAliveTimeout" valueName="KeepAliveTimeout" minValue="1000" maxValue="3600000" />
+      </elements>
+    </policy>
     <policy name="ReadTimeout" class="Both" displayName="$(string.ReadTimeout)" explainText="$(string.ReadTimeout_Help)" presentation="$(presentation.ReadTimeout)" key="Software\Policies\Marius Greuel\WinPX">
       <parentCategory ref="WinPX" />
       <supportedOn ref="windows:SUPPORTED_Windows_10_0" />

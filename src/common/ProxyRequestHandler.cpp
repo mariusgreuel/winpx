@@ -85,40 +85,57 @@ namespace winpx
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u]", client.local_endpoint().port(), client.remote_endpoint().port());
 
         m_proxyStatistics.activeConnections += 1;
+        m_proxyStatistics.totalConnections += 1;
 
         RequestContext context(client);
-        context.m_requestId = ++m_proxyStatistics.requests;
-
         std::optional<HttpError> error;
 
         try
         {
-            auto [ec, headSize] = co_await asio::async_read_until(
-                client,
-                asio::dynamic_buffer(context.clientBuffer, m_proxyConfiguration.httpConfiguration.maxHeadSize),
-                "\r\n\r\n"sv,
-                asio::as_tuple(asio::cancel_after(m_proxyConfiguration.httpConfiguration.readTimeout, asio::use_awaitable)));
-            if (ec == asio::error::not_found)
+            while (true)
             {
-                throw HttpError(HttpStatusCode::RequestHeaderFieldsTooLarge);
-            }
-            else if (ec == asio::error::operation_aborted || ec == asio::error::timed_out)
-            {
-                throw HttpError(HttpStatusCode::RequestTimeout);
-            }
-            else if (ec)
-            {
-                throw asio::system_error(ec);
-            }
+                auto timeout = context.firstRequest ? m_proxyConfiguration.httpConfiguration.readTimeout : m_proxyConfiguration.httpConfiguration.keepAliveTimeout;
+                auto [ec, headSize] = co_await asio::async_read_until(
+                    client,
+                    asio::dynamic_buffer(context.clientBuffer, m_proxyConfiguration.httpConfiguration.maxHeadSize),
+                    "\r\n\r\n"sv,
+                    asio::as_tuple(asio::cancel_after(timeout, asio::use_awaitable)));
+                if (IsConnectionLost(ec) && !context.firstRequest && context.clientBuffer.empty())
+                {
+                    DoTraceMessage(WppVerbose, "Connection lost");
+                    break;
+                }
+                else if (ec == asio::error::not_found)
+                {
+                    throw HttpError(HttpStatusCode::RequestHeaderFieldsTooLarge);
+                }
+                else if (ec == asio::error::operation_aborted || ec == asio::error::timed_out)
+                {
+                    throw HttpError(HttpStatusCode::RequestTimeout);
+                }
+                else if (ec)
+                {
+                    throw asio::system_error(ec);
+                }
 
-            if (headSize > 0)
-            {
-                context.request = ParseRequestHead(context.clientBuffer, headSize);
+                if (headSize == 0)
+                {
+                    DoTraceMessage(WppVerbose, "Received empty header");
+                    break;
+                }
 
-                m_proxyStatistics.totalConnections += 1;
                 m_proxyStatistics.totalClientBytesReceived += headSize;
 
+                context.Reuse(++m_proxyStatistics.requests);
+                context.request = ParseRequestHead(context.clientBuffer, headSize);
+                context.firstRequest = false;
+
                 co_await HandleRequest(context);
+
+                if (!context.keepClientAlive)
+                {
+                    break;
+                }
             }
         }
         catch (const HttpError& e)
@@ -183,6 +200,7 @@ namespace winpx
                 {
                     { "Content-Length"sv, "0"sv },
                     { "WWW-Authenticate"sv, "Basic realm=\"WinPX Proxy\""sv },
+                    { "Connection"sv, "close"sv },
                 });
             LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
             context.responseSent = true;
@@ -209,6 +227,7 @@ namespace winpx
                 {
                     { "Content-Length"sv, "0"sv },
                     { "Proxy-Authenticate"sv, "Basic realm=\"WinPX Proxy\""sv },
+                    { "Connection"sv, "close"sv },
                 });
             LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
             context.responseSent = true;
@@ -298,12 +317,14 @@ namespace winpx
             }
             else
             {
+                auto responseFraming = GetFraming(response);
+
                 LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
                 context.responseSent = true;
                 m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.GetHead());
 
-                LOG_INFO("{} Streaming response body: {}", context, response.GetFraming());
-                size_t totalBytes = co_await StreamResponseBody(server, context.client, context.serverBuffer, response.GetFraming());
+                LOG_INFO("{} Streaming response body: {}", context, responseFraming);
+                size_t totalBytes = co_await StreamResponseBody(server, context.client, context.serverBuffer, responseFraming);
                 m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
                 m_proxyStatistics.totalClientBytesSent += totalBytes;
             }
@@ -319,25 +340,12 @@ namespace winpx
 
         Uri target = GetAbsoluteUrl(context.request);
 
-        context.requestFraming = context.request.GetFraming();
+        context.requestFraming = GetFraming(context.request);
 
         HttpRequestMessage forwardedRequest(context.request.GetMethod(), {});
-        auto connectionOptions = context.request.GetHeaders().GetListValues("Connection"sv);
-        forwardedRequest.GetHeaders().Add(context.request.GetHeaders().Select([&](auto name) {
-            return !IsHopByHopHeader(name) &&
-                   !HasConnectionOption(connectionOptions, name) &&
-                   !IEquals(name, "Content-Length"sv);
-        }));
+        forwardedRequest.GetHeaders().Add(GetSanitizedHeaders(context.request, context.requestFraming));
         forwardedRequest.GetHeaders().Replace("Host"sv, target.GetHostAndPort());
         forwardedRequest.GetHeaders().Replace("Via"sv, CreateViaThisProxy(context.request));
-        if (context.requestFraming.chunked)
-        {
-            forwardedRequest.GetHeaders().Replace("Transfer-Encoding"sv, "chunked"sv);
-        }
-        else if (context.requestFraming.contentLength)
-        {
-            forwardedRequest.GetHeaders().Replace("Content-Length"sv, std::to_string(*context.requestFraming.contentLength));
-        }
 
         auto proxy = m_proxyResolver.ResolveProxy(target.ToString());
         context.requestStrategy = SelectRequestStrategy(context.request, context.requestFraming, proxy.direct);
@@ -347,7 +355,7 @@ namespace winpx
             DoTraceMessage(WppVerbose, "Forwarding via DIRECT connection to '%!str!'", target.ToString());
 
             forwardedRequest.SetRequestUri(target.GetPathAndQuery());
-            forwardedRequest.GetHeaders().Add("Connection"sv, "close"sv);
+            forwardedRequest.GetHeaders().Add("Connection"sv, "keep-alive"sv);
 
             LOG_INFO("{} Creating direct connection to '{}'", context, target.GetHostAndPort());
             asio::ip::tcp::socket server = co_await ConnectTo(target.host, target.port);
@@ -429,7 +437,7 @@ namespace winpx
 
             if (!IEquals(request.GetMethod(), "HEAD"sv))
             {
-                response.SetBody(co_await ReadBody(server, context.serverBuffer, response.GetFraming()));
+                response.SetBody(co_await ReadBody(server, context.serverBuffer, GetFraming(response)));
             }
 
             if (context.requestBodySent)
@@ -684,17 +692,26 @@ namespace winpx
 
     asio::awaitable<void> ProxyRequestHandler::ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, const HttpResponseMessage& response)
     {
-        context.responseSent = true;
-        m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.GetHead());
+        auto responseFraming = GetFraming(response);
+        auto statusCode = response.GetStatusCode();
+        bool hasBody = !IEquals(context.request.GetMethod(), "HEAD"sv) && statusCode != HttpStatusCode::NoContent && statusCode != HttpStatusCode::NotModified;
+        bool isBodySizeKnown = !hasBody || responseFraming.chunked || responseFraming.contentLength.has_value();
 
-        if (!IEquals(context.request.GetMethod(), "HEAD"sv))
+        context.keepClientAlive = !IsConnectionClose(context.request) && isBodySizeKnown;
+
+        HttpResponseMessage forwardedResponse(response.GetStatusCode(), response.GetReasonPhrase());
+        forwardedResponse.GetHeaders().Add(GetSanitizedHeaders(response, responseFraming));
+        forwardedResponse.GetHeaders().Add("Connection"sv, context.keepClientAlive ? "keep-alive"sv : "close"sv);
+        LOG_INFO("{} Writing response: {}", context, forwardedResponse.GetStatusLine());
+        context.responseSent = true;
+        m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, forwardedResponse.GetHead());
+
+        if (hasBody)
         {
-            auto statusCode = response.GetStatusCode();
-            if (statusCode != HttpStatusCode::NoContent && statusCode != HttpStatusCode::NotModified)
-            {
-                LOG_INFO("{} Streaming response body: {}", context, response.GetFraming());
-                co_await StreamResponseBody(server, context.client, context.serverBuffer, response.GetFraming());
-            }
+            LOG_INFO("{} Streaming response body: {}", context, responseFraming);
+            size_t totalBytes = co_await StreamResponseBody(server, context.client, context.serverBuffer, responseFraming);
+            m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
+            m_proxyStatistics.totalClientBytesSent += totalBytes;
         }
     }
 
@@ -828,6 +845,32 @@ namespace winpx
         }
     }
 
+    HttpMessageFraming ProxyRequestHandler::GetFraming(const HttpRequestMessage& request)
+    {
+        try
+        {
+            return request.GetFraming();
+        }
+        catch (const std::exception& e)
+        {
+            DoTraceMessage(WppWarning, "Invalid request framing: %s", e.what());
+            throw HttpError(HttpStatusCode::BadRequest);
+        }
+    }
+
+    HttpMessageFraming ProxyRequestHandler::GetFraming(const HttpResponseMessage& response)
+    {
+        try
+        {
+            return response.GetFraming();
+        }
+        catch (const std::exception& e)
+        {
+            DoTraceMessage(WppWarning, "Invalid response framing: %s", e.what());
+            throw HttpError(HttpStatusCode::BadGateway);
+        }
+    }
+
     AuthenticationSchemes ProxyRequestHandler::ParseAuthenticationOffer(const HttpResponseMessage& response)
     {
         AuthenticationSchemes offered;
@@ -883,6 +926,27 @@ namespace winpx
         {
             return { value, {} };
         }
+    }
+
+    HttpHeaders ProxyRequestHandler::GetSanitizedHeaders(const HttpMessage& message, const HttpMessageFraming& framing)
+    {
+        auto connectionOptions = message.GetHeaders().GetListValues("Connection"sv);
+        auto headers = message.GetHeaders().Select([&](auto name) {
+            return !IsHopByHopHeader(name) &&
+                   !HasConnectionOption(connectionOptions, name) &&
+                   !IEquals(name, "Content-Length"sv);
+        });
+
+        if (framing.chunked)
+        {
+            headers.Replace("Transfer-Encoding"sv, "chunked"sv);
+        }
+        else if (framing.contentLength)
+        {
+            headers.Replace("Content-Length"sv, std::to_string(*framing.contentLength));
+        }
+
+        return headers;
     }
 
     bool ProxyRequestHandler::IsHopByHopHeader(std::string_view name)
@@ -943,6 +1007,15 @@ namespace winpx
     bool ProxyRequestHandler::HasBasicCredentials(const ProxyConfiguration& configuration)
     {
         return !configuration.gatewayUsername.empty();
+    }
+
+    bool ProxyRequestHandler::IsConnectionLost(const asio::error_code& ec)
+    {
+        return ec == asio::error::eof ||
+               ec == asio::error::connection_reset ||
+               ec == asio::error::connection_aborted ||
+               ec == asio::error::operation_aborted ||
+               ec == asio::error::timed_out;
     }
 
     INCLUDE_IN_PDB(AuthenticationScheme);

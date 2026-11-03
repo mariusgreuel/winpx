@@ -144,6 +144,7 @@ namespace winpx
 
         httpConfiguration.resolveTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ResolveTimeout"sv, 5000));
         httpConfiguration.connectTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ConnectTimeout"sv, 5000));
+        httpConfiguration.keepAliveTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("KeepAliveTimeout"sv, 30000));
         httpConfiguration.readTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ReadTimeout"sv, 120000));
         httpConfiguration.writeTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("WriteTimeout"sv, 15000));
         httpConfiguration.expectContinueTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ExpectContinueTimeout"sv, 3000));

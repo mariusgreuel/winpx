@@ -42,6 +42,19 @@ namespace winpx
             {
             }
 
+            void Reuse(size_t requestId)
+            {
+                m_requestId = requestId;
+                request = {};
+                requestFraming = {};
+                requestStrategy = RequestStrategy::NoBody;
+                replayBuffer.reset();
+                requestBodySent = false;
+                responseSent = false;
+                continueSent = false;
+                keepClientAlive = false;
+            }
+
             asio::ip::tcp::socket& client;
             std::string clientBuffer;
             std::string serverBuffer;
@@ -50,9 +63,11 @@ namespace winpx
             HttpMessageFraming requestFraming;
             RequestStrategy requestStrategy = RequestStrategy::NoBody;
             std::unique_ptr<HttpReplayBuffer> replayBuffer;
+            bool firstRequest = true;
             bool requestBodySent = false;
             bool responseSent = false;
             bool continueSent = false;
+            bool keepClientAlive = false;
         };
 
     private:
@@ -89,14 +104,18 @@ namespace winpx
         RequestStrategy SelectRequestStrategy(const HttpRequestMessage& request, const HttpMessageFraming& framing, bool direct) const;
         static HttpRequestMessage ParseRequestHead(std::string& buffer, size_t headSize);
         static HttpResponseMessage ParseResponseHead(std::string& buffer, size_t headSize);
+        static HttpMessageFraming GetFraming(const HttpRequestMessage& request);
+        static HttpMessageFraming GetFraming(const HttpResponseMessage& response);
         static AuthenticationSchemes ParseAuthenticationOffer(const HttpResponseMessage& response);
         static std::vector<std::byte> ParseAuthenticationToken(const HttpResponseMessage& response, std::string_view scheme);
         static std::tuple<std::string_view, std::string_view> SplitAuthenticationHeader(std::string_view value);
+        static HttpHeaders GetSanitizedHeaders(const HttpMessage& message, const HttpMessageFraming& framing);
         static bool IsHopByHopHeader(std::string_view name);
         static bool IsConnectionClose(const HttpMessage& message);
         static bool HasConnectionOption(const std::vector<std::string_view>& connectionOptions, std::string_view name);
         static bool HasExpectContinue(const HttpMessage& message);
         static bool HasBasicCredentials(const ProxyConfiguration& configuration);
+        static bool IsConnectionLost(const asio::error_code& ec);
 
     private:
         const ProxyConfiguration& m_proxyConfiguration;

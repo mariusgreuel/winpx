@@ -450,7 +450,7 @@ namespace SystemTests
         EXPECT_EQ(originRequest.GetMethod(), "GET");
         EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/direct-get-request");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("X-Test"sv), "direct-get");
-        EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "close");
+        EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Via"sv), std::format("1.1 winpx:{}", m_configuration.port));
         EXPECT_TRUE(originRequest.GetBody().empty());
     }
@@ -486,7 +486,7 @@ namespace SystemTests
         EXPECT_EQ(originRequest.GetMethod(), "POST");
         EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/direct-post-request");
         EXPECT_EQ(originRequest.GetHeaders().GetValue("Content-Type"sv), "application/x-www-form-urlencoded");
-        EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "close");
+        EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_EQ(originRequest.GetBody(), body);
     }
 
@@ -513,7 +513,7 @@ namespace SystemTests
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetHeaders().GetValue("Content-Length"sv), "123");
-        EXPECT_EQ(response.GetHeaders().GetValue("Connection"sv), "close");
+        EXPECT_EQ(response.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_TRUE(response.GetBody().empty());
         EXPECT_EQ(originRequest.GetMethod(), "HEAD");
         EXPECT_EQ(originRequest.GetRequestUri().ToString(), "/direct-head-request");
@@ -610,7 +610,7 @@ namespace SystemTests
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(response.GetHeaders().GetValue("Content-Length"sv), "123");
-        EXPECT_EQ(response.GetHeaders().GetValue("Connection"sv), "close");
+        EXPECT_EQ(response.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_TRUE(response.GetBody().empty());
         EXPECT_EQ(upstreamRequest.GetMethod(), "HEAD");
         EXPECT_EQ(upstreamRequest.GetRequestUri().ToString(), "http://example.org/proxy-head-request");
@@ -647,7 +647,7 @@ namespace SystemTests
 
         EXPECT_EQ(response.GetStatusCode(), HttpStatusCode::OK);
         EXPECT_EQ(originRequest.GetHeaders().GetValue("X-Test"sv), "direct-get");
-        EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "close");
+        EXPECT_EQ(originRequest.GetHeaders().GetValue("Connection"sv), "keep-alive");
         EXPECT_FALSE(originRequest.GetHeaders().Contains("Proxy-Connection"sv));
         EXPECT_FALSE(originRequest.GetHeaders().Contains("Proxy-Authorization"sv));
         EXPECT_FALSE(originRequest.GetHeaders().Contains("X-Remove"sv));
