@@ -279,6 +279,7 @@ namespace winpx
             m_ioContext.stop();
 
             ShutdownThreadPool();
+            m_proxyRequestHandler.GetConnectionPool().Clear();
 
             m_state = ProxyState::Stopped;
         }

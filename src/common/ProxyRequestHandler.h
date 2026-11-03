@@ -4,6 +4,7 @@
 //
 
 #pragma once
+#include "HttpConnectionPool.h"
 #include "HttpMessageFraming.h"
 #include "HttpReplayBuffer.h"
 #include "HttpRequestMessage.h"
@@ -24,6 +25,7 @@ namespace winpx
         ProxyRequestHandler& operator=(const ProxyRequestHandler&) = delete;
 
         asio::awaitable<void> Handle(asio::ip::tcp::socket socket);
+        HttpConnectionPool& GetConnectionPool() noexcept { return m_connectionPool; }
 
         enum class RequestStrategy
         {
@@ -93,7 +95,7 @@ namespace winpx
         asio::awaitable<HttpResponseMessage> SendRequest(RequestContext& context, asio::ip::tcp::socket& server, const HttpRequestMessage& request);
         asio::awaitable<WaitForContinueResult> WaitForContinue(asio::ip::tcp::socket& server, std::string& buffer) const;
         asio::awaitable<HttpResponseMessage> ReceiveFinalResponse(asio::ip::tcp::socket& server, std::string& buffer) const;
-        asio::awaitable<void> ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, const HttpResponseMessage& response);
+        asio::awaitable<void> ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, const HttpResponseMessage& response, const std::string& connectionKey);
 
         bool IsRequestToWebServer(const HttpRequestMessage& request) const;
         bool IsRequestToWebServer(const Uri& target) const;
@@ -121,6 +123,7 @@ namespace winpx
         const ProxyConfiguration& m_proxyConfiguration;
         ProxyResolver& m_proxyResolver;
         ProxyStatistics& m_proxyStatistics;
+        HttpConnectionPool m_connectionPool;
         std::string m_proxyId;
     };
 }

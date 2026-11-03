@@ -82,6 +82,9 @@
     <ClCompile Include="HttpTransport.cpp">
       <Filter>2 Http</Filter>
     </ClCompile>
+    <ClCompile Include="HttpConnectionPool.cpp">
+      <Filter>2 Http</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AuthenticationSchemes.h">
@@ -186,6 +189,9 @@
       <Filter>2 Http</Filter>
     </ClInclude>
     <ClInclude Include="HttpTransport.h">
+      <Filter>2 Http</Filter>
+    </ClInclude>
+    <ClInclude Include="HttpConnectionPool.h">
       <Filter>2 Http</Filter>
     </ClInclude>
   </ItemGroup>

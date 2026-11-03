@@ -37,6 +37,9 @@
     <ClCompile Include="HttpTransportTests.cpp">
       <Filter>1 UnitTests</Filter>
     </ClCompile>
+    <ClCompile Include="HttpConnectionPoolTests.cpp">
+      <Filter>1 UnitTests</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

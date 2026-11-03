@@ -141,13 +141,15 @@ namespace winpx
         httpConfiguration.maxBodySizeBeforeProbing = GetPolicyOrRegistryValue("MaxBodySizeBeforeProbing"sv, 1 * HttpConfiguration::MB);
         httpConfiguration.maxReplayBufferSize = GetPolicyOrRegistryValue("MaxReplayBufferSize"sv, 256 * HttpConfiguration::MB);
         httpConfiguration.maxDrainSize = GetPolicyOrRegistryValue("MaxDrainSize"sv, 1 * HttpConfiguration::MB);
+        httpConfiguration.maxIdleServerConnectionsPerHost = GetPolicyOrRegistryValue("MaxIdleServerConnectionsPerHost"sv, 8);
 
         httpConfiguration.resolveTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ResolveTimeout"sv, 5000));
         httpConfiguration.connectTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ConnectTimeout"sv, 5000));
         httpConfiguration.keepAliveTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("KeepAliveTimeout"sv, 30000));
+        httpConfiguration.serverIdleTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ServerIdleTimeout"sv, 30000));
         httpConfiguration.readTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ReadTimeout"sv, 120000));
         httpConfiguration.writeTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("WriteTimeout"sv, 15000));
-        httpConfiguration.expectContinueTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ExpectContinueTimeout"sv, 3000));
+        httpConfiguration.expectContinueTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("ExpectContinueTimeout"sv, 1000));
         httpConfiguration.drainTimeout = std::chrono::milliseconds(GetPolicyOrRegistryValue("DrainTimeout"sv, 2000));
 
         if (guid.length() != 36)

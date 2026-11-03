@@ -197,6 +197,55 @@
         <text id="DiagnosticUrls_Message" valueName="DiagnosticUrls" required="true" expand="true" />
       </elements>
     </policy>
+    <policy name="ThreadPoolSize" class="Both" displayName="$(string.ThreadPoolSize)" explainText="$(string.ThreadPoolSize_Help)" presentation="$(presentation.ThreadPoolSize)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="ThreadPoolSize" valueName="ThreadPoolSize" minValue="0" maxValue="256" />
+      </elements>
+    </policy>
+    <policy name="MaxHeadSize" class="Both" displayName="$(string.MaxHeadSize)" explainText="$(string.MaxHeadSize_Help)" presentation="$(presentation.MaxHeadSize)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="MaxHeadSize" valueName="MaxHeadSize" minValue="1024" maxValue="1073741824" />
+      </elements>
+    </policy>
+    <policy name="MaxChunkSize" class="Both" displayName="$(string.MaxChunkSize)" explainText="$(string.MaxChunkSize_Help)" presentation="$(presentation.MaxChunkSize)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="MaxChunkSize" valueName="MaxChunkSize" minValue="1024" maxValue="1073741824" />
+      </elements>
+    </policy>
+    <policy name="MaxBodySizeBeforeProbing" class="Both" displayName="$(string.MaxBodySizeBeforeProbing)" explainText="$(string.MaxBodySizeBeforeProbing_Help)" presentation="$(presentation.MaxBodySizeBeforeProbing)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="MaxBodySizeBeforeProbing" valueName="MaxBodySizeBeforeProbing" minValue="1024" maxValue="1073741824" />
+      </elements>
+    </policy>
+    <policy name="MaxReplayBufferSize" class="Both" displayName="$(string.MaxReplayBufferSize)" explainText="$(string.MaxReplayBufferSize_Help)" presentation="$(presentation.MaxReplayBufferSize)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="MaxReplayBufferSize" valueName="MaxReplayBufferSize" minValue="1024" maxValue="1073741824" />
+      </elements>
+    </policy>
+    <policy name="MaxDrainSize" class="Both" displayName="$(string.MaxDrainSize)" explainText="$(string.MaxDrainSize_Help)" presentation="$(presentation.MaxDrainSize)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="MaxDrainSize" valueName="MaxDrainSize" minValue="1024" maxValue="1073741824" />
+      </elements>
+    </policy>
+    <policy name="MaxIdleServerConnectionsPerHost" class="Both" displayName="$(string.MaxIdleServerConnectionsPerHost)" explainText="$(string.MaxIdleServerConnectionsPerHost_Help)" presentation="$(presentation.MaxIdleServerConnectionsPerHost)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="MaxIdleServerConnectionsPerHost" valueName="MaxIdleServerConnectionsPerHost" minValue="1" maxValue="1024" />
+      </elements>
+    </policy>
     <policy name="ResolveTimeout" class="Both" displayName="$(string.ResolveTimeout)" explainText="$(string.ResolveTimeout_Help)" presentation="$(presentation.ResolveTimeout)" key="Software\Policies\Marius Greuel\WinPX">
       <parentCategory ref="WinPX" />
       <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
@@ -215,7 +264,14 @@
       <parentCategory ref="WinPX" />
       <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
       <elements>
-        <decimal id="KeepAliveTimeout" valueName="KeepAliveTimeout" minValue="1000" maxValue="3600000" />
+        <decimal id="KeepAliveTimeout" valueName="KeepAliveTimeout" minValue="0" maxValue="3600000" />
+      </elements>
+    </policy>
+    <policy name="ServerIdleTimeout" class="Both" displayName="$(string.ServerIdleTimeout)" explainText="$(string.ServerIdleTimeout_Help)" presentation="$(presentation.ServerIdleTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="ServerIdleTimeout" valueName="ServerIdleTimeout" minValue="0" maxValue="3600000" />
       </elements>
     </policy>
     <policy name="ReadTimeout" class="Both" displayName="$(string.ReadTimeout)" explainText="$(string.ReadTimeout_Help)" presentation="$(presentation.ReadTimeout)" key="Software\Policies\Marius Greuel\WinPX">
@@ -230,6 +286,20 @@
       <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
       <elements>
         <decimal id="WriteTimeout" valueName="WriteTimeout" minValue="1000" maxValue="3600000" />
+      </elements>
+    </policy>
+    <policy name="ExpectContinueTimeout" class="Both" displayName="$(string.ExpectContinueTimeout)" explainText="$(string.ExpectContinueTimeout_Help)" presentation="$(presentation.ExpectContinueTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="ExpectContinueTimeout" valueName="ExpectContinueTimeout" minValue="1000" maxValue="3600000" />
+      </elements>
+    </policy>
+    <policy name="DrainTimeout" class="Both" displayName="$(string.DrainTimeout)" explainText="$(string.DrainTimeout_Help)" presentation="$(presentation.DrainTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="DrainTimeout" valueName="DrainTimeout" minValue="1000" maxValue="3600000" />
       </elements>
     </policy>
     <policy name="HelpUrlGeneral" class="Both" displayName="$(string.HelpUrlGeneral)" explainText="$(string.HelpUrlGeneral_Help)" presentation="$(presentation.HelpUrlGeneral)" key="Software\Policies\Marius Greuel\WinPX">

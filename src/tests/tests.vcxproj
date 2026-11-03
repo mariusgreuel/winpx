@@ -135,6 +135,7 @@
   <ItemGroup>
     <ClCompile Include="AuthenticationSchemesTests.cpp" />
     <ClCompile Include="CommandLineParserTests.cpp" />
+    <ClCompile Include="HttpConnectionPoolTests.cpp" />
     <ClCompile Include="HttpHeadersTests.cpp" />
     <ClCompile Include="HttpMessageTests.cpp" />
     <ClCompile Include="HttpRequestMessageTests.cpp" />

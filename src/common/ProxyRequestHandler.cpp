@@ -68,7 +68,8 @@ namespace winpx
         HttpTransport(proxyConfiguration.httpConfiguration),
         m_proxyConfiguration(proxyConfiguration),
         m_proxyResolver(proxyResolver),
-        m_proxyStatistics(proxyStatistics)
+        m_proxyStatistics(proxyStatistics),
+        m_connectionPool(proxyConfiguration.httpConfiguration)
     {
         DoTraceMessage(WppObject, "%!FUNC!");
 
@@ -357,11 +358,39 @@ namespace winpx
             forwardedRequest.SetRequestUri(target.GetPathAndQuery());
             forwardedRequest.GetHeaders().Add("Connection"sv, "keep-alive"sv);
 
-            LOG_INFO("{} Creating direct connection to '{}'", context, target.GetHostAndPort());
-            asio::ip::tcp::socket server = co_await ConnectTo(target.host, target.port);
+            auto connectionKey = HttpConnectionPool::MakeKey(true, target.host, target.port);
 
-            HttpResponseMessage response = co_await SendRequest(context, server, forwardedRequest);
-            co_await ForwardResponse(context, server, response);
+            asio::ip::tcp::socket server(co_await asio::this_coro::executor);
+            std::optional<HttpResponseMessage> response;
+
+            std::optional<asio::ip::tcp::socket> pooledConnection = m_connectionPool.Acquire(connectionKey);
+            if (pooledConnection)
+            {
+                LOG_INFO("{} Reusing direct connection to '{}'", context, target.GetHostAndPort());
+                server = std::move(*pooledConnection);
+                try
+                {
+                    response = co_await SendRequest(context, server, forwardedRequest);
+                }
+                catch (const std::exception& e)
+                {
+                    if (context.requestBodySent)
+                    {
+                        throw;
+                    }
+
+                    DoTraceMessage(WppVerbose, "Pooled connection failed, reconnecting: %s", e.what());
+                }
+            }
+
+            if (!response)
+            {
+                LOG_INFO("{} Creating direct connection to '{}'", context, target.GetHostAndPort());
+                server = co_await ConnectTo(target.host, target.port);
+                response = co_await SendRequest(context, server, forwardedRequest);
+            }
+
+            co_await ForwardResponse(context, server, *response, connectionKey);
         }
         else
         {
@@ -370,8 +399,10 @@ namespace winpx
             forwardedRequest.SetRequestUri(target.ToString());
             forwardedRequest.GetHeaders().Add("Connection"sv, "keep-alive"sv);
 
+            auto connectionKey = HttpConnectionPool::MakeKey(false, proxy.host, proxy.port);
+
             auto [server, response] = co_await ConnectToUpstreamProxy(context, proxy.host, proxy.port, std::move(forwardedRequest));
-            co_await ForwardResponse(context, server, response);
+            co_await ForwardResponse(context, server, response, connectionKey);
         }
     }
 
@@ -384,8 +415,19 @@ namespace winpx
             host,
             port);
 
-        LOG_INFO("{} Creating connection to upstream proxy '{}:{}'", context, host, port);
-        asio::ip::tcp::socket server = co_await ConnectTo(host, port);
+        asio::ip::tcp::socket server(co_await asio::this_coro::executor);
+
+        std::optional<asio::ip::tcp::socket> pooledConnection = m_connectionPool.Acquire(HttpConnectionPool::MakeKey(false, host, port));
+        if (pooledConnection)
+        {
+            LOG_INFO("{} Reusing connection to upstream proxy '{}:{}'", context, host, port);
+            server = std::move(*pooledConnection);
+        }
+        else
+        {
+            LOG_INFO("{} Creating connection to upstream proxy '{}:{}'", context, host, port);
+            server = co_await ConnectTo(host, port);
+        }
 
         std::unique_ptr<ProxyAuthenticationSession> authenticationSession;
         AuthenticationScheme authenticationScheme = AuthenticationScheme::Any;
@@ -690,7 +732,7 @@ namespace winpx
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, const HttpResponseMessage& response)
+    asio::awaitable<void> ProxyRequestHandler::ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, const HttpResponseMessage& response, const std::string& connectionKey)
     {
         auto responseFraming = GetFraming(response);
         auto statusCode = response.GetStatusCode();
@@ -712,6 +754,12 @@ namespace winpx
             size_t totalBytes = co_await StreamResponseBody(server, context.client, context.serverBuffer, responseFraming);
             m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
             m_proxyStatistics.totalClientBytesSent += totalBytes;
+        }
+
+        bool serverReusable = !IsConnectionClose(response) && isBodySizeKnown && statusCode != HttpStatusCode::SwitchingProtocols;
+        if (serverReusable && context.serverBuffer.empty())
+        {
+            m_connectionPool.Release(connectionKey, std::move(server));
         }
     }
 

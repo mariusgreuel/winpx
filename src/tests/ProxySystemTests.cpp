@@ -1066,6 +1066,224 @@ namespace SystemTests
         EXPECT_EQ(response.GetBody(), "recovered");
     }
 
+    TEST_F(ProxySystemTest, ReusesDirectServerConnection)
+    {
+        std::vector<HttpRequestMessage> originRequests;
+        ScriptedServer originServer([&](tcp::socket& socket) {
+            for (int i = 0; i < 2; i++)
+            {
+                originRequests.push_back(ReadRequestMessage(socket));
+                WriteAll(socket,
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Length: 2\r\n"
+                    "\r\n"
+                    "ok"sv);
+            }
+        });
+
+        StartProxy(DirectConfiguration());
+
+        auto request = std::format(
+            "GET http://127.0.0.1:{0}/reuse HTTP/1.1\r\n"
+            "Host: 127.0.0.1:{0}\r\n"
+            "\r\n",
+            originServer.GetPort());
+
+        asio::io_context ioContext;
+        auto socket = ConnectToProxy(ioContext);
+        WriteAll(socket, request);
+        auto first = ReadResponseMessage(socket);
+        WriteAll(socket, request);
+        auto second = ReadResponseMessage(socket);
+        originServer.RethrowFailure();
+
+        EXPECT_EQ(first.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetBody(), "ok");
+        EXPECT_EQ(originRequests.size(), 2u);
+    }
+
+    TEST_F(ProxySystemTest, ReusesUpstreamProxyConnection)
+    {
+        std::vector<HttpRequestMessage> upstreamRequests;
+        ScriptedServer upstreamProxy([&](tcp::socket& socket) {
+            for (int i = 0; i < 2; i++)
+            {
+                upstreamRequests.push_back(ReadRequestMessage(socket));
+                WriteAll(socket,
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Length: 2\r\n"
+                    "\r\n"
+                    "ok"sv);
+            }
+        });
+
+        StartProxy(ManualProxyConfiguration(upstreamProxy.GetPort()));
+
+        constexpr auto request =
+            "GET http://example.org/reuse HTTP/1.1\r\n"
+            "Host: example.org\r\n"
+            "\r\n"sv;
+
+        asio::io_context ioContext;
+        auto socket = ConnectToProxy(ioContext);
+        WriteAll(socket, request);
+        auto first = ReadResponseMessage(socket);
+        WriteAll(socket, request);
+        auto second = ReadResponseMessage(socket);
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(first.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetBody(), "ok");
+        EXPECT_EQ(upstreamRequests.size(), 2u);
+    }
+
+    TEST_F(ProxySystemTest, ReusesDirectServerConnectionAcrossClientConnections)
+    {
+        size_t requestCount = 0;
+        ScriptedServer originServer([&](tcp::socket& socket) {
+            for (int i = 0; i < 2; i++)
+            {
+                ReadRequestMessage(socket);
+                requestCount++;
+                WriteAll(socket,
+                    "HTTP/1.1 200 OK\r\n"
+                    "Content-Length: 2\r\n"
+                    "\r\n"
+                    "ok"sv);
+            }
+        });
+
+        StartProxy(DirectConfiguration());
+
+        auto request = std::format(
+            "GET http://127.0.0.1:{0}/reuse-across-clients HTTP/1.1\r\n"
+            "Host: 127.0.0.1:{0}\r\n"
+            "\r\n",
+            originServer.GetPort());
+
+        asio::io_context ioContext;
+        auto firstClient = ConnectToProxy(ioContext);
+        WriteAll(firstClient, request);
+        auto first = ReadResponseMessage(firstClient);
+        firstClient.close();
+
+        auto secondClient = ConnectToProxy(ioContext);
+        WriteAll(secondClient, request);
+        auto second = ReadResponseMessage(secondClient);
+        originServer.RethrowFailure();
+
+        EXPECT_EQ(first.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetBody(), "ok");
+        EXPECT_EQ(requestCount, 2u);
+    }
+
+    TEST_F(ProxySystemTest, DoesNotReuseServerConnectionAfterConnectionClose)
+    {
+        std::array<HttpRequestMessage, 2> originRequests;
+        ScriptedServer originServer(2, [&](tcp::socket& socket, size_t index) {
+            originRequests[index] = ReadRequestMessage(socket);
+            WriteAll(socket,
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Length: 2\r\n"
+                "Connection: close\r\n"
+                "\r\n"
+                "ok"sv);
+        });
+
+        StartProxy(DirectConfiguration());
+
+        auto request = std::format(
+            "GET http://127.0.0.1:{0}/no-reuse HTTP/1.1\r\n"
+            "Host: 127.0.0.1:{0}\r\n"
+            "\r\n",
+            originServer.GetPort());
+
+        asio::io_context ioContext;
+        auto socket = ConnectToProxy(ioContext);
+        WriteAll(socket, request);
+        auto first = ReadResponseMessage(socket);
+        WriteAll(socket, request);
+        auto second = ReadResponseMessage(socket);
+        originServer.RethrowFailure();
+
+        EXPECT_EQ(first.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(originRequests[1].GetRequestUri().ToString(), "/no-reuse");
+    }
+
+    TEST_F(ProxySystemTest, ReconnectsWhenPooledDirectConnectionWasClosedByServer)
+    {
+        ScriptedServer originServer(2, [&](tcp::socket& socket, size_t index) {
+            static constexpr std::array<std::string_view, 2> responses{
+                "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nfirst"sv,
+                "HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nsecond"sv,
+            };
+            ReadRequestMessage(socket);
+            WriteAll(socket, responses[index]);
+            socket.close();
+        });
+
+        StartProxy(DirectConfiguration());
+
+        auto request = std::format(
+            "GET http://127.0.0.1:{0}/stale HTTP/1.1\r\n"
+            "Host: 127.0.0.1:{0}\r\n"
+            "\r\n",
+            originServer.GetPort());
+
+        asio::io_context ioContext;
+        auto socket = ConnectToProxy(ioContext);
+        WriteAll(socket, request);
+        auto first = ReadResponseMessage(socket);
+        std::this_thread::sleep_for(100ms);
+        WriteAll(socket, request);
+        auto second = ReadResponseMessage(socket);
+        originServer.RethrowFailure();
+
+        EXPECT_EQ(first.GetBody(), "first");
+        EXPECT_EQ(second.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetBody(), "second");
+    }
+
+    TEST_F(ProxySystemTest, ReconnectsWhenPooledUpstreamProxyConnectionWasClosed)
+    {
+        ScriptedServer upstreamProxy(2, [&](tcp::socket& socket, size_t index) {
+            ReadRequestMessage(socket);
+            WriteAll(socket, index == 0 ? "HTTP/1.1 200 OK\r\n"
+                                          "Content-Length: 5\r\n"
+                                          "\r\n"
+                                          "first"sv
+                                        : "HTTP/1.1 200 OK\r\n"
+                                          "Content-Length: 6\r\n"
+                                          "\r\n"
+                                          "second"sv);
+            socket.close();
+        });
+
+        StartProxy(ManualProxyConfiguration(upstreamProxy.GetPort()));
+
+        constexpr auto request =
+            "GET http://example.org/stale HTTP/1.1\r\n"
+            "Host: example.org\r\n"
+            "\r\n"sv;
+
+        asio::io_context ioContext;
+        auto socket = ConnectToProxy(ioContext);
+        WriteAll(socket, request);
+        auto first = ReadResponseMessage(socket);
+        std::this_thread::sleep_for(100ms);
+        WriteAll(socket, request);
+        auto second = ReadResponseMessage(socket);
+        upstreamProxy.RethrowFailure();
+
+        EXPECT_EQ(first.GetBody(), "first");
+        EXPECT_EQ(second.GetStatusCode(), HttpStatusCode::OK);
+        EXPECT_EQ(second.GetBody(), "second");
+    }
+
     TEST_F(ProxySystemTest, InsertsNoExpectContinueForSmallUpstreamRequestBody)
     {
         constexpr auto body = "expect-body"sv;
@@ -1235,7 +1453,7 @@ namespace SystemTests
 
     TEST_F(ProxySystemTest, DeliversEarlyRejectionWithoutResettingClient)
     {
-        const std::string body(0x40000, 'B');
+        const std::string body(0x40000, 'X');
 
         ScriptedServer upstreamProxy([&](tcp::socket& socket) {
             std::string buffer;

@@ -200,6 +200,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CommandLineParser.cpp" />
+    <ClCompile Include="HttpConnectionPool.cpp" />
     <ClCompile Include="HttpHeader.cpp" />
     <ClCompile Include="HttpHeaders.cpp" />
     <ClCompile Include="HttpMessage.cpp" />
@@ -234,6 +235,7 @@
     <ClInclude Include="AuthenticationSchemes.h" />
     <ClInclude Include="CommandLineParser.h" />
     <ClInclude Include="HttpConfiguration.h" />
+    <ClInclude Include="HttpConnectionPool.h" />
     <ClInclude Include="HttpHeaders.h" />
     <ClInclude Include="HttpMessageFraming.h" />
     <ClInclude Include="HttpReplayBuffer.h" />
