@@ -86,10 +86,10 @@ namespace winpx
 
         m_proxyStatistics.activeConnections += 1;
 
-        std::optional<HttpError> httpError;
-
-        RequestContext context;
+        RequestContext context(client);
         context.m_requestId = ++m_proxyStatistics.requests;
+
+        std::optional<HttpError> error;
 
         try
         {
@@ -113,32 +113,32 @@ namespace winpx
 
             if (headSize > 0)
             {
-                auto request = ParseRequestHead(context.clientBuffer, headSize);
+                context.request = ParseRequestHead(context.clientBuffer, headSize);
 
                 m_proxyStatistics.totalConnections += 1;
                 m_proxyStatistics.totalClientBytesReceived += headSize;
 
-                co_await HandleRequest(context, client, request);
+                co_await HandleRequest(context);
             }
         }
         catch (const HttpError& e)
         {
             DoTraceMessage(WppWarning, "HTTP error: %s", e.what());
-            httpError = e;
+            error = e;
             m_proxyStatistics.errors += 1;
         }
         catch (const std::exception& e)
         {
             DoTraceMessage(WppWarning, "std::exception: %s", e.what());
-            httpError = HttpError(HttpStatusCode::BadGateway);
+            error = HttpError(HttpStatusCode::BadGateway);
             m_proxyStatistics.errors += 1;
         }
 
-        if (httpError && !context.responseSent && client.is_open())
+        if (error && !context.responseSent && client.is_open())
         {
             try
             {
-                const HttpResponseMessage response(httpError->GetStatusCode(), httpError->GetReasonPhrase(),
+                const HttpResponseMessage response(error->GetStatusCode(), error->GetReasonPhrase(),
                     {
                         { "Content-Length"sv, "0"sv },
                         { "Connection"sv, "close"sv },
@@ -158,26 +158,26 @@ namespace winpx
         m_proxyStatistics.activeConnections -= 1;
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleRequest(RequestContext& context)
     {
-        LOG_INFO("{} Received request: {}", context, request.GetRequestLine());
+        LOG_INFO("{} Received request: {}", context, context.request.GetRequestLine());
 
-        if (IsRequestToWebServer(request))
+        if (IsRequestToWebServer(context.request))
         {
-            co_await HandleWebServerRequest(context, client, request);
+            co_await HandleWebServerRequest(context);
         }
         else
         {
-            co_await HandleProxyRequest(context, client, request);
+            co_await HandleProxyRequest(context);
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleWebServerRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleWebServerRequest(RequestContext& context)
     {
-        if (m_proxyConfiguration.requireLocalAuthentication && !IsAuthenticated(request, "Authorization"sv))
+        if (m_proxyConfiguration.requireLocalAuthentication && !IsAuthenticated(context.request, "Authorization"sv))
         {
-            DoTraceMessage(WppWarning, "Unauthorized request: '%!str!'", request.GetRequestLine());
-            LOG_WARNING("{} Unauthorized request: {}", context, request.GetRequestLine());
+            DoTraceMessage(WppWarning, "Unauthorized request: '%!str!'", context.request.GetRequestLine());
+            LOG_WARNING("{} Unauthorized request: {}", context, context.request.GetRequestLine());
 
             static const HttpResponseMessage response(HttpStatusCode::Unauthorized, std::nullopt,
                 {
@@ -186,24 +186,24 @@ namespace winpx
                 });
             LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
             context.responseSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.ToString());
         }
         else
         {
             WebServer webServer(m_proxyConfiguration, m_proxyStatistics);
-            auto response = webServer.ProcessRequest(request);
+            auto response = webServer.ProcessRequest(context.request);
             LOG_INFO("{} Writing response from web-server: {}", context, response.GetStatusLine());
             context.responseSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.ToString());
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleProxyRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleProxyRequest(RequestContext& context)
     {
-        if (m_proxyConfiguration.requireLocalAuthentication && !IsAuthenticated(request, "Proxy-Authorization"sv))
+        if (m_proxyConfiguration.requireLocalAuthentication && !IsAuthenticated(context.request, "Proxy-Authorization"sv))
         {
-            DoTraceMessage(WppWarning, "Unauthorized request: '%!str!'", request.GetRequestLine());
-            LOG_WARNING("{} Unauthorized request: {}", context, request.GetRequestLine());
+            DoTraceMessage(WppWarning, "Unauthorized request: '%!str!'", context.request.GetRequestLine());
+            LOG_WARNING("{} Unauthorized request: {}", context, context.request.GetRequestLine());
 
             static const HttpResponseMessage response(HttpStatusCode::ProxyAuthenticationRequired, std::nullopt,
                 {
@@ -212,12 +212,12 @@ namespace winpx
                 });
             LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
             context.responseSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.ToString());
         }
-        else if (IsSentViaThisProxy(request))
+        else if (IsSentViaThisProxy(context.request))
         {
-            DoTraceMessage(WppWarning, "Proxy loop detected: '%!str!'", request.GetRequestLine());
-            LOG_WARNING("{} Proxy loop detected: {}", context, request.GetRequestLine());
+            DoTraceMessage(WppWarning, "Proxy loop detected: '%!str!'", context.request.GetRequestLine());
+            LOG_WARNING("{} Proxy loop detected: {}", context, context.request.GetRequestLine());
 
             static const HttpResponseMessage response(HttpStatusCode::BadGateway, "Proxy loop detected",
                 {
@@ -226,29 +226,29 @@ namespace winpx
                 });
             LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
             context.responseSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.ToString());
         }
         else
         {
-            if (IEquals(request.GetMethod(), "CONNECT"sv))
+            if (IEquals(context.request.GetMethod(), "CONNECT"sv))
             {
-                co_await HandleConnectRequest(context, client, request);
+                co_await HandleConnectRequest(context);
             }
             else
             {
-                co_await HandleStandardRequest(context, client, request);
+                co_await HandleStandardRequest(context);
             }
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleConnectRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleConnectRequest(RequestContext& context)
     {
         DoTraceMessage(WppTrace, "%!FUNC!: [%u/%u], head=%!str!",
-            client.local_endpoint().port(),
-            client.remote_endpoint().port(),
-            request.GetRedactedHead());
+            context.client.local_endpoint().port(),
+            context.client.remote_endpoint().port(),
+            context.request.GetRedactedHead());
 
-        Uri target = request.GetRequestUri();
+        Uri target = context.request.GetRequestUri();
         if (target.port == 0)
         {
             target.port = 443;
@@ -265,10 +265,14 @@ namespace winpx
             static const HttpResponseMessage connectionEstablished(HttpStatusCode::OK, "Connection Established");
             LOG_INFO("{} Writing response: {}", context, connectionEstablished.GetStatusLine());
             context.responseSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, connectionEstablished.ToString());
+            m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, connectionEstablished.ToString());
 
             LOG_INFO("{} Creating tunnel", context);
-            co_await Tunnel(client, server, context.clientBuffer, {});
+            auto result = co_await Tunnel(context.client, server, context.clientBuffer, {});
+            m_proxyStatistics.totalClientBytesSent += result.clientBytesSent;
+            m_proxyStatistics.totalClientBytesReceived += result.clientBytesReceived;
+            m_proxyStatistics.totalUpstreamBytesSent += result.serverBytesSent;
+            m_proxyStatistics.totalUpstreamBytesReceived += result.serverBytesReceived;
         }
         else
         {
@@ -277,16 +281,16 @@ namespace winpx
             HttpRequestMessage connectRequest("CONNECT", target.GetHostAndPort());
             connectRequest.GetHeaders().Add("Host"sv, target.GetHostAndPort());
 
-            auto [server, response] = co_await ConnectToUpstreamProxy(context, client, proxy, std::move(connectRequest));
+            auto [server, response] = co_await ConnectToUpstreamProxy(context, proxy.host, proxy.port, std::move(connectRequest));
             if (GetHttpStatusCategory(response.GetStatusCode()) == HttpStatusCategory::Success)
             {
                 static const HttpResponseMessage connectionEstablished(HttpStatusCode::OK, "Connection Established");
                 LOG_INFO("{} Writing response: {}", context, connectionEstablished.GetStatusLine());
                 context.responseSent = true;
-                m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, connectionEstablished.ToString());
+                m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, connectionEstablished.ToString());
 
                 LOG_INFO("{} Creating tunnel", context);
-                auto result = co_await Tunnel(client, server, context.clientBuffer, context.serverBuffer);
+                auto result = co_await Tunnel(context.client, server, context.clientBuffer, context.serverBuffer);
                 m_proxyStatistics.totalClientBytesSent += result.clientBytesSent;
                 m_proxyStatistics.totalClientBytesReceived += result.clientBytesReceived;
                 m_proxyStatistics.totalUpstreamBytesSent += result.serverBytesSent;
@@ -296,47 +300,47 @@ namespace winpx
             {
                 LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
                 context.responseSent = true;
-                m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
+                m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.GetHead());
 
                 LOG_INFO("{} Streaming response body: {}", context, response.GetFraming());
-                size_t totalBytes = co_await StreamResponseBody(server, client, context.serverBuffer, response.GetFraming());
+                size_t totalBytes = co_await StreamResponseBody(server, context.client, context.serverBuffer, response.GetFraming());
                 m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
                 m_proxyStatistics.totalClientBytesSent += totalBytes;
             }
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::HandleStandardRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request)
+    asio::awaitable<void> ProxyRequestHandler::HandleStandardRequest(RequestContext& context)
     {
         DoTraceMessage(WppTrace, "%!FUNC!: [%u/%u], head=%!str!",
-            client.local_endpoint().port(),
-            client.remote_endpoint().port(),
-            request.GetRedactedHead());
+            context.client.local_endpoint().port(),
+            context.client.remote_endpoint().port(),
+            context.request.GetRedactedHead());
 
-        Uri target = GetAbsoluteUrl(request);
+        Uri target = GetAbsoluteUrl(context.request);
 
-        context.framing = request.GetFraming();
+        context.requestFraming = context.request.GetFraming();
 
-        HttpRequestMessage forwardedRequest(request.GetMethod(), {});
-        auto connectionOptions = request.GetHeaders().GetListValues("Connection"sv);
-        forwardedRequest.GetHeaders().Add(request.GetHeaders().Select([&](auto name) {
+        HttpRequestMessage forwardedRequest(context.request.GetMethod(), {});
+        auto connectionOptions = context.request.GetHeaders().GetListValues("Connection"sv);
+        forwardedRequest.GetHeaders().Add(context.request.GetHeaders().Select([&](auto name) {
             return !IsHopByHopHeader(name) &&
                    !HasConnectionOption(connectionOptions, name) &&
                    !IEquals(name, "Content-Length"sv);
         }));
         forwardedRequest.GetHeaders().Replace("Host"sv, target.GetHostAndPort());
-        forwardedRequest.GetHeaders().Replace("Via"sv, CreateViaThisProxy(request));
-        if (context.framing.chunked)
+        forwardedRequest.GetHeaders().Replace("Via"sv, CreateViaThisProxy(context.request));
+        if (context.requestFraming.chunked)
         {
             forwardedRequest.GetHeaders().Replace("Transfer-Encoding"sv, "chunked"sv);
         }
-        else if (context.framing.contentLength)
+        else if (context.requestFraming.contentLength)
         {
-            forwardedRequest.GetHeaders().Replace("Content-Length"sv, std::to_string(*context.framing.contentLength));
+            forwardedRequest.GetHeaders().Replace("Content-Length"sv, std::to_string(*context.requestFraming.contentLength));
         }
 
         auto proxy = m_proxyResolver.ResolveProxy(target.ToString());
-        context.strategy = SelectRequestStrategy(request, context.framing, proxy.direct);
+        context.requestStrategy = SelectRequestStrategy(context.request, context.requestFraming, proxy.direct);
 
         if (proxy.direct)
         {
@@ -348,8 +352,8 @@ namespace winpx
             LOG_INFO("{} Creating direct connection to '{}'", context, target.GetHostAndPort());
             asio::ip::tcp::socket server = co_await ConnectTo(target.host, target.port);
 
-            HttpResponseMessage response = co_await SendRequest(context, client, server, forwardedRequest);
-            co_await ForwardResponse(context, server, client, forwardedRequest, response);
+            HttpResponseMessage response = co_await SendRequest(context, server, forwardedRequest);
+            co_await ForwardResponse(context, server, response);
         }
         else
         {
@@ -358,22 +362,22 @@ namespace winpx
             forwardedRequest.SetRequestUri(target.ToString());
             forwardedRequest.GetHeaders().Add("Connection"sv, "keep-alive"sv);
 
-            auto [server, response] = co_await ConnectToUpstreamProxy(context, client, proxy, std::move(forwardedRequest));
-            co_await ForwardResponse(context, server, client, forwardedRequest, response);
+            auto [server, response] = co_await ConnectToUpstreamProxy(context, proxy.host, proxy.port, std::move(forwardedRequest));
+            co_await ForwardResponse(context, server, response);
         }
     }
 
     asio::awaitable<ProxyRequestHandler::ConnectToUpstreamProxyResult> ProxyRequestHandler::ConnectToUpstreamProxy(
-        RequestContext& context, asio::ip::tcp::socket& client, const ProxyResolverResult& proxy, HttpRequestMessage request)
+        RequestContext& context, const std::string& host, uint16_t port, HttpRequestMessage request)
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u], host=%!str!, port=%u",
-            client.local_endpoint().port(),
-            client.remote_endpoint().port(),
-            proxy.host,
-            proxy.port);
+            context.client.local_endpoint().port(),
+            context.client.remote_endpoint().port(),
+            host,
+            port);
 
-        LOG_INFO("{} Creating connection to upstream proxy '{}:{}'", context, proxy.host, proxy.port);
-        asio::ip::tcp::socket server = co_await ConnectTo(proxy.host, proxy.port);
+        LOG_INFO("{} Creating connection to upstream proxy '{}:{}'", context, host, port);
+        asio::ip::tcp::socket server = co_await ConnectTo(host, port);
 
         std::unique_ptr<ProxyAuthenticationSession> authenticationSession;
         AuthenticationScheme authenticationScheme = AuthenticationScheme::Any;
@@ -388,7 +392,7 @@ namespace winpx
 
             try
             {
-                response = co_await SendRequest(context, client, server, request);
+                response = co_await SendRequest(context, server, request);
             }
             catch (const asio::system_error& e)
             {
@@ -408,18 +412,11 @@ namespace winpx
                 if (!connectionBound && !context.requestBodySent && reconnects++ < maxReconnects)
                 {
                     context.serverBuffer.clear();
-                    server = co_await ConnectTo(proxy.host, proxy.port);
+                    server = co_await ConnectTo(host, port);
                     continue;
                 }
 
-                if (ec == asio::error::operation_aborted)
-                {
-                    throw HttpError(HttpStatusCode::GatewayTimeout);
-                }
-                else
-                {
-                    throw HttpError(HttpStatusCode::BadGateway);
-                }
+                throw HttpError(ec == asio::error::operation_aborted ? HttpStatusCode::GatewayTimeout : HttpStatusCode::BadGateway);
             }
 
             if (response.GetStatusCode() != HttpStatusCode::ProxyAuthenticationRequired)
@@ -428,12 +425,11 @@ namespace winpx
                 co_return ConnectToUpstreamProxyResult(std::move(server), std::move(response));
             }
 
-            LOG_INFO("{} Upstream proxy '{}:{}' requires authentication", context, proxy.host, proxy.port);
+            LOG_INFO("{} Upstream proxy '{}:{}' requires authentication", context, host, port);
 
             if (!IEquals(request.GetMethod(), "HEAD"sv))
             {
-                auto buffer = context.serverBuffer;
-                response.SetBody(co_await ReadBody(server, buffer, response.GetFraming()));
+                response.SetBody(co_await ReadBody(server, context.serverBuffer, response.GetFraming()));
             }
 
             if (context.requestBodySent)
@@ -444,13 +440,13 @@ namespace winpx
                     throw HttpError(HttpStatusCode::BadGateway, "Request body cannot be replayed");
                 }
 
-                context.strategy = RequestStrategy::ReplayBody;
+                context.requestStrategy = RequestStrategy::ReplayBody;
             }
 
             if (IsConnectionClose(response))
             {
                 DoTraceMessage(WppVerbose, "Upstream proxy closed the connection after 407, reconnecting.");
-                server = co_await ConnectTo(proxy.host, proxy.port);
+                server = co_await ConnectTo(host, port);
 
                 if (connectionBound)
                 {
@@ -501,7 +497,7 @@ namespace winpx
             {
                 if (!authenticationSession)
                 {
-                    authenticationSession = std::make_unique<ProxyAuthenticationSession>(m_proxyConfiguration, authenticationScheme, "HTTP/" + proxy.host);
+                    authenticationSession = std::make_unique<ProxyAuthenticationSession>(m_proxyConfiguration, authenticationScheme, "HTTP/" + host);
                 }
 
                 std::vector<std::byte> incoming = ParseAuthenticationToken(response, ToString(authenticationScheme));
@@ -523,17 +519,17 @@ namespace winpx
         throw HttpError(HttpStatusCode::BadGateway);
     }
 
-    asio::awaitable<HttpResponseMessage> ProxyRequestHandler::SendRequest(RequestContext& context, asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, const HttpRequestMessage& request)
+    asio::awaitable<HttpResponseMessage> ProxyRequestHandler::SendRequest(RequestContext& context, asio::ip::tcp::socket& server, const HttpRequestMessage& request)
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u -> %u/%u], strategy=%!RequestStrategy!, head=%!str!",
-            client.local_endpoint().port(),
-            client.remote_endpoint().port(),
+            context.client.local_endpoint().port(),
+            context.client.remote_endpoint().port(),
             server.local_endpoint().port(),
             server.remote_endpoint().port(),
-            static_cast<int>(context.strategy),
+            static_cast<int>(context.requestStrategy),
             request.GetRedactedHead());
 
-        switch (context.strategy)
+        switch (context.requestStrategy)
         {
         case RequestStrategy::NoBody:
         {
@@ -546,9 +542,9 @@ namespace winpx
             LOG_INFO("{} Sending request: {}", context, request.GetRequestLine());
             m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, request.GetHead());
 
-            LOG_INFO("{} Streaming request body: {}", context, context.framing);
+            LOG_INFO("{} Streaming request body: {}", context, context.requestFraming);
             context.requestBodySent = true;
-            size_t totalBytes = co_await StreamRequestBody(client, server, context.clientBuffer, context.framing);
+            size_t totalBytes = co_await StreamRequestBody(context.client, server, context.clientBuffer, context.requestFraming);
             m_proxyStatistics.totalClientBytesReceived += totalBytes;
             m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
 
@@ -560,9 +556,9 @@ namespace winpx
             m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, request.GetHead());
 
             context.replayBuffer = std::make_unique<HttpReplayBuffer>();
-            LOG_INFO("{} Streaming request body: {}", context, context.framing);
+            LOG_INFO("{} Streaming request body: {}", context, context.requestFraming);
             context.requestBodySent = true;
-            size_t totalBytes = co_await StreamRequestBody(client, server, context.clientBuffer, context.framing, context.replayBuffer.get());
+            size_t totalBytes = co_await StreamRequestBody(context.client, server, context.clientBuffer, context.requestFraming, context.replayBuffer.get());
             m_proxyStatistics.totalClientBytesReceived += totalBytes;
             m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
 
@@ -573,7 +569,7 @@ namespace winpx
             LOG_INFO("{} Sending request: {}", context, request.GetRequestLine());
             m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, request.GetHead());
 
-            LOG_INFO("{} Sending request body: {}", context, context.framing);
+            LOG_INFO("{} Sending request body: {}", context, context.requestFraming);
             m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, context.replayBuffer->GetData());
             co_return co_await ReceiveFinalResponse(server, context.serverBuffer);
         }
@@ -581,7 +577,7 @@ namespace winpx
         case RequestStrategy::InsertExpect:
         {
             std::string head = request.GetHead();
-            if (context.strategy == RequestStrategy::InsertExpect)
+            if (context.requestStrategy == RequestStrategy::InsertExpect)
             {
                 head.insert(head.size() - 2, "Expect: 100-continue\r\n"sv);
             }
@@ -595,11 +591,11 @@ namespace winpx
                 co_return std::move(*finalResponse);
             }
 
-            if (context.strategy == RequestStrategy::ClientExpect && !context.continueSent)
+            if (context.requestStrategy == RequestStrategy::ClientExpect && !context.continueSent)
             {
                 static const HttpResponseMessage response(HttpStatusCode::Continue);
                 LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
-                m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
+                m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.ToString());
                 context.continueSent = true;
             }
 
@@ -608,9 +604,9 @@ namespace winpx
                 context.replayBuffer = std::make_unique<HttpReplayBuffer>();
             }
 
-            LOG_INFO("{} Streaming request body: {}", context, context.framing);
+            LOG_INFO("{} Streaming request body: {}", context, context.requestFraming);
             context.requestBodySent = true;
-            size_t totalBytes = co_await StreamRequestBody(client, server, context.clientBuffer, context.framing, context.replayBuffer.get());
+            size_t totalBytes = co_await StreamRequestBody(context.client, server, context.clientBuffer, context.requestFraming, context.replayBuffer.get());
             m_proxyStatistics.totalClientBytesReceived += totalBytes;
             m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
 
@@ -686,18 +682,18 @@ namespace winpx
         }
     }
 
-    asio::awaitable<void> ProxyRequestHandler::ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, asio::ip::tcp::socket& client, const HttpRequestMessage& request, const HttpResponseMessage& response)
+    asio::awaitable<void> ProxyRequestHandler::ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, const HttpResponseMessage& response)
     {
         context.responseSent = true;
-        m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
+        m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, response.GetHead());
 
-        if (!IEquals(request.GetMethod(), "HEAD"sv))
+        if (!IEquals(context.request.GetMethod(), "HEAD"sv))
         {
             auto statusCode = response.GetStatusCode();
             if (statusCode != HttpStatusCode::NoContent && statusCode != HttpStatusCode::NotModified)
             {
                 LOG_INFO("{} Streaming response body: {}", context, response.GetFraming());
-                co_await StreamResponseBody(server, client, context.serverBuffer, response.GetFraming());
+                co_await StreamResponseBody(server, context.client, context.serverBuffer, response.GetFraming());
             }
         }
     }

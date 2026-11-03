@@ -37,12 +37,19 @@ namespace winpx
 
         struct RequestContext
         {
-            size_t m_requestId = 0;
+            RequestContext(asio::ip::tcp::socket& client) :
+                client(client)
+            {
+            }
+
+            asio::ip::tcp::socket& client;
             std::string clientBuffer;
             std::string serverBuffer;
+            size_t m_requestId = 0;
+            HttpRequestMessage request;
+            HttpMessageFraming requestFraming;
+            RequestStrategy requestStrategy = RequestStrategy::NoBody;
             std::unique_ptr<HttpReplayBuffer> replayBuffer;
-            HttpMessageFraming framing;
-            RequestStrategy strategy = RequestStrategy::NoBody;
             bool requestBodySent = false;
             bool responseSent = false;
             bool continueSent = false;
@@ -61,17 +68,17 @@ namespace winpx
             bool timedOut = false;
         };
 
-        asio::awaitable<void> HandleRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
-        asio::awaitable<void> HandleWebServerRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
-        asio::awaitable<void> HandleProxyRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
-        asio::awaitable<void> HandleConnectRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
-        asio::awaitable<void> HandleStandardRequest(RequestContext& context, asio::ip::tcp::socket& client, const HttpRequestMessage& request);
+        asio::awaitable<void> HandleRequest(RequestContext& context);
+        asio::awaitable<void> HandleWebServerRequest(RequestContext& context);
+        asio::awaitable<void> HandleProxyRequest(RequestContext& context);
+        asio::awaitable<void> HandleConnectRequest(RequestContext& context);
+        asio::awaitable<void> HandleStandardRequest(RequestContext& context);
 
-        asio::awaitable<ConnectToUpstreamProxyResult> ConnectToUpstreamProxy(RequestContext& context, asio::ip::tcp::socket& client, const ProxyResolverResult& proxy, HttpRequestMessage request);
-        asio::awaitable<HttpResponseMessage> SendRequest(RequestContext& context, asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, const HttpRequestMessage& request);
+        asio::awaitable<ConnectToUpstreamProxyResult> ConnectToUpstreamProxy(RequestContext& context, const std::string& host, uint16_t port, HttpRequestMessage request);
+        asio::awaitable<HttpResponseMessage> SendRequest(RequestContext& context, asio::ip::tcp::socket& server, const HttpRequestMessage& request);
         asio::awaitable<WaitForContinueResult> WaitForContinue(asio::ip::tcp::socket& server, std::string& buffer) const;
         asio::awaitable<HttpResponseMessage> ReceiveFinalResponse(asio::ip::tcp::socket& server, std::string& buffer) const;
-        asio::awaitable<void> ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, asio::ip::tcp::socket& client, const HttpRequestMessage& request, const HttpResponseMessage& response);
+        asio::awaitable<void> ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, const HttpResponseMessage& response);
 
         bool IsRequestToWebServer(const HttpRequestMessage& request) const;
         bool IsRequestToWebServer(const Uri& target) const;
