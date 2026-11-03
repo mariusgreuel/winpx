@@ -82,7 +82,7 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        OnlineHelp::Open("Security"sv);
+        OnlineHelp::Open("HelpUrlSecurity"sv);
     }
 
     void DialogOptionsSecurity::UpdateGroupPolicy()

@@ -90,7 +90,7 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        OnlineHelp::Open("Diagnostics"sv);
+        OnlineHelp::Open("HelpUrlDiagnostics"sv);
     }
 
     std::string DialogOptionsDiagnostics::ResolveProxyForUrl(const std::string& url) const

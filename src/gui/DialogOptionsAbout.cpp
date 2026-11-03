@@ -56,6 +56,6 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        OnlineHelp::Open("About"sv);
+        OnlineHelp::Open("HelpUrlAbout"sv);
     }
 }

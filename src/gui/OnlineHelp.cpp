@@ -18,8 +18,16 @@ namespace winpx
 
     void OnlineHelp::Open(std::string_view helpId)
     {
-        auto helpKey = std::format("HelpUrl{}", helpId);
-        auto url = GroupPolicy::GetValue(helpKey, Registry::GetValue(helpKey, "https://github.com/mariusgreuel/winpx"sv));
+        static const std::unordered_map<std::string_view, std::string_view> helpUrls = {
+            { "HelpUrlGeneral"sv, "https://github.com/mariusgreuel/winpx/wiki/Configuring-WinPX#general-tab"sv },
+            { "HelpUrlGateway"sv, "https://github.com/mariusgreuel/winpx/wiki/Configuring-WinPX#gateway-tab"sv },
+            { "HelpUrlSecurity"sv, "https://github.com/mariusgreuel/winpx/wiki/Configuring-WinPX#security-tab"sv },
+            { "HelpUrlStatus"sv, "https://github.com/mariusgreuel/winpx/wiki/Configuring-WinPX#status-tab"sv },
+            { "HelpUrlDiagnostics"sv, "https://github.com/mariusgreuel/winpx/wiki/Configuring-WinPX#diagnostics-tab"sv },
+            { "HelpUrlAbout"sv, "https://github.com/mariusgreuel/winpx/wiki/Configuring-WinPX#about-tab"sv }
+        };
+
+        auto url = GroupPolicy::GetValue(helpId, Registry::GetValue(helpId, helpUrls.at(helpId)));
         UrlLauncher::Launch(url);
     }
 }

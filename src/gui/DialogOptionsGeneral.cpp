@@ -128,7 +128,7 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        OnlineHelp::Open("General"sv);
+        OnlineHelp::Open("HelpUrlGeneral"sv);
     }
 
     void DialogOptionsGeneral::UpdateGroupPolicy()

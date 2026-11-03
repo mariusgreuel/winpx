@@ -59,7 +59,7 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        OnlineHelp::Open("Status"sv);
+        OnlineHelp::Open("HelpUrlStatus"sv);
     }
 
     void DialogOptionsStatus::UpdateControls()
