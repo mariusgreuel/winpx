@@ -63,22 +63,17 @@ namespace winpx
         return GetHead() + GetBody();
     }
 
-    void HttpRequestMessage::Parse(std::string_view message)
+    void HttpRequestMessage::ParseMessage(std::string_view buffer)
     {
-        auto headEnd = message.find("\r\n\r\n");
+        auto headEnd = buffer.find("\r\n\r\n");
         if (headEnd == std::string::npos)
         {
-            throw std::runtime_error("Invalid HTTP message.");
+            throw std::runtime_error("Invalid HTTP message");
         }
 
-        Parse(message, headEnd + 4);
-    }
+        ParseHead(buffer.substr(0, headEnd + 4));
 
-    void HttpRequestMessage::Parse(std::string_view message, size_t headSize)
-    {
-        std::string head;
-        std::tie(head, m_body) = SplitMessage(message, headSize);
-        ParseHead(head);
+        m_body = std::string(buffer.substr(headEnd + 4));
     }
 
     void HttpRequestMessage::ParseHead(std::string_view buffer)
@@ -99,18 +94,26 @@ namespace winpx
 
         std::string_view method;
         if (!GetSubstring(buffer, offset, method, ' '))
-            throw std::runtime_error("Missing request method.");
+        {
+            throw std::runtime_error("Missing request method");
+        }
 
         std::string_view requestUri;
         if (!GetSubstring(buffer, offset, requestUri, ' '))
-            throw std::runtime_error("Missing request URI.");
+        {
+            throw std::runtime_error("Missing request URI");
+        }
 
         std::string_view version;
         if (!GetSubstring(buffer, offset, version, ' '))
-            throw std::runtime_error("Missing HTTP version.");
+        {
+            throw std::runtime_error("Missing HTTP version");
+        }
 
         if (!buffer.substr(offset).empty())
-            throw std::runtime_error("Unexpected data after HTTP version.");
+        {
+            throw std::runtime_error("Unexpected data after HTTP version");
+        }
 
         ParseHttpVersion(version);
 

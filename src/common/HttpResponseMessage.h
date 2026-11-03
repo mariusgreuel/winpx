@@ -27,11 +27,10 @@ namespace winpx
         std::string GetRedactedHead() const;
         std::string ToString() const;
 
-        void Parse(std::string_view message);
-        void Parse(std::string_view message, size_t headSize);
+        void ParseMessage(std::string_view buffer);
+        void ParseHead(std::string_view buffer);
 
     private:
-        void ParseHead(std::string_view buffer);
         void ParseStatusLine(std::string_view buffer);
 
     private:

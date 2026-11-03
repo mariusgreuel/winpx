@@ -19,8 +19,6 @@ namespace winpx
         HttpMessage() = default;
 
     public:
-        std::string GetBufferLeftover() const;
-
         std::string GetBody() const;
         void SetBody(std::string body);
 
@@ -35,7 +33,6 @@ namespace winpx
         void ParseHeaders(std::string_view headers);
         void ParseHeader(std::string_view header);
         void ParseHttpVersion(std::string_view buffer);
-        static std::tuple<std::string, std::string> SplitMessage(std::string_view message, size_t headSize);
         static bool GetHeaderLine(std::string_view request, size_t& offset, std::string_view& line);
 
     protected:

@@ -119,7 +119,7 @@ namespace SystemTests
         return result;
     }
 
-    static std::tuple<std::string, size_t> ReadMessage(tcp::socket& socket)
+    static std::string ReadMessage(tcp::socket& socket)
     {
         std::string buffer;
         auto headSize = asio::read_until(socket, asio::dynamic_buffer(buffer), "\r\n\r\n"sv);
@@ -128,33 +128,26 @@ namespace SystemTests
 
         if (IsChunked(head))
         {
-            auto body = ReadChunkedData(socket, buffer);
-            return { head + body, headSize };
+            return head + ReadChunkedData(socket, buffer);
         }
         else
         {
-            auto contentLength = GetContentLength(head);
-            auto body = ReadData(socket, buffer, contentLength);
-            return { head + body, headSize };
+            return head + ReadData(socket, buffer, GetContentLength(head));
         }
     }
 
     static HttpRequestMessage ReadRequestMessage(tcp::socket& socket)
     {
-        auto [message, headSize] = ReadMessage(socket);
-
         HttpRequestMessage request;
-        request.Parse(message, headSize);
-        return std::move(request);
+        request.ParseMessage(ReadMessage(socket));
+        return request;
     }
 
     static HttpResponseMessage ReadResponseMessage(tcp::socket& socket)
     {
-        auto [message, headSize] = ReadMessage(socket);
-
         HttpResponseMessage response;
-        response.Parse(message, headSize);
-        return std::move(response);
+        response.ParseMessage(ReadMessage(socket));
+        return response;
     }
 
     static void WriteAll(tcp::socket& socket, std::string_view value)
@@ -421,7 +414,7 @@ namespace SystemTests
                 return {};
 
             HttpResponseMessage response;
-            response.Parse(message);
+            response.ParseMessage(message);
             return response;
         }
 

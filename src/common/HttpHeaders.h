@@ -20,8 +20,8 @@ namespace winpx
         auto begin() const { return m_headers.begin(); }
         auto end() const { return m_headers.end(); }
 
+        void Add(std::string name, std::string value);
         void Add(std::string_view name, std::string_view value);
-        void Add(const HttpHeader& header);
         void Add(const HttpHeaders& headers);
         void Replace(std::string_view name, std::string_view value);
         size_t GetCount() const;

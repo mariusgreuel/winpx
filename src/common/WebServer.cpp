@@ -186,7 +186,7 @@ function FindProxyForURL(url, host) {{
             response.GetHeaders().Add(header.name, header.value);
         }
 
-        response.GetHeaders().Add("Content-Type", contentType);
+        response.GetHeaders().Add("Content-Type"sv, contentType);
         response.SetBody(std::move(content));
         return response;
     }

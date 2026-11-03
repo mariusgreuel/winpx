@@ -21,7 +21,7 @@ namespace UnitTests
         void Parse(std::string_view message)
         {
             auto normalizedMessage = NormalizeCrLf(message);
-            m_response.Parse(normalizedMessage);
+            m_response.ParseMessage(normalizedMessage);
             ASSERT_EQ(normalizedMessage, m_response.ToString());
         }
 

@@ -42,7 +42,7 @@ struct std::formatter<winpx::HttpMessageFraming> : std::formatter<std::string_vi
         }
         else
         {
-            return std::formatter<std::string_view>::format("unknown", ctx);
+            return std::formatter<std::string_view>::format("unknown size", ctx);
         }
     }
 };
@@ -93,11 +93,9 @@ namespace winpx
 
         try
         {
-
-            std::string message;
             auto [ec, headSize] = co_await asio::async_read_until(
                 client,
-                asio::dynamic_buffer(message, m_proxyConfiguration.httpConfiguration.maxHeadSize),
+                asio::dynamic_buffer(context.clientBuffer, m_proxyConfiguration.httpConfiguration.maxHeadSize),
                 "\r\n\r\n"sv,
                 asio::as_tuple(asio::cancel_after(m_proxyConfiguration.httpConfiguration.readTimeout, asio::use_awaitable)));
             if (ec == asio::error::not_found)
@@ -115,18 +113,10 @@ namespace winpx
 
             if (headSize > 0)
             {
-                HttpRequestMessage request;
-                try
-                {
-                    request.Parse(message, headSize);
-                }
-                catch (const std::exception& e)
-                {
-                    throw HttpError(HttpStatusCode::BadRequest, e.what());
-                }
+                auto request = ParseRequestHead(context.clientBuffer, headSize);
 
                 m_proxyStatistics.totalConnections += 1;
-                m_proxyStatistics.totalClientBytesReceived += message.size();
+                m_proxyStatistics.totalClientBytesReceived += headSize;
 
                 co_await HandleRequest(context, client, request);
             }
@@ -278,7 +268,7 @@ namespace winpx
             m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, connectionEstablished.ToString());
 
             LOG_INFO("{} Creating tunnel", context);
-            co_await Tunnel(client, server, request.GetBufferLeftover(), {});
+            co_await Tunnel(client, server, context.clientBuffer, {});
         }
         else
         {
@@ -296,7 +286,7 @@ namespace winpx
                 m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, connectionEstablished.ToString());
 
                 LOG_INFO("{} Creating tunnel", context);
-                auto result = co_await Tunnel(client, server, request.GetBufferLeftover(), response.GetBufferLeftover());
+                auto result = co_await Tunnel(client, server, context.clientBuffer, context.serverBuffer);
                 m_proxyStatistics.totalClientBytesSent += result.clientBytesSent;
                 m_proxyStatistics.totalClientBytesReceived += result.clientBytesReceived;
                 m_proxyStatistics.totalUpstreamBytesSent += result.serverBytesSent;
@@ -309,8 +299,7 @@ namespace winpx
                 m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
 
                 LOG_INFO("{} Streaming response body: {}", context, response.GetFraming());
-                auto buffer = response.GetBufferLeftover();
-                size_t totalBytes = co_await StreamResponseBody(server, client, buffer, response.GetFraming());
+                size_t totalBytes = co_await StreamResponseBody(server, client, context.serverBuffer, response.GetFraming());
                 m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
                 m_proxyStatistics.totalClientBytesSent += totalBytes;
             }
@@ -327,7 +316,6 @@ namespace winpx
         Uri target = GetAbsoluteUrl(request);
 
         context.framing = request.GetFraming();
-        context.clientBuffer = request.GetBufferLeftover();
 
         HttpRequestMessage forwardedRequest(request.GetMethod(), {});
         auto connectionOptions = request.GetHeaders().GetListValues("Connection"sv);
@@ -361,13 +349,7 @@ namespace winpx
             asio::ip::tcp::socket server = co_await ConnectTo(target.host, target.port);
 
             HttpResponseMessage response = co_await SendRequest(context, client, server, forwardedRequest);
-            context.responseSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
-
-            LOG_INFO("{} Relaying response", context);
-            auto totalBytes = co_await RelayDataOneWay(server, client);
-            m_proxyStatistics.totalUpstreamBytesReceived += totalBytes;
-            m_proxyStatistics.totalClientBytesSent += totalBytes;
+            co_await ForwardResponse(context, server, client, forwardedRequest, response);
         }
         else
         {
@@ -377,19 +359,7 @@ namespace winpx
             forwardedRequest.GetHeaders().Add("Connection"sv, "keep-alive"sv);
 
             auto [server, response] = co_await ConnectToUpstreamProxy(context, client, proxy, std::move(forwardedRequest));
-            context.responseSent = true;
-            m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
-
-            if (!IEquals(request.GetMethod(), "HEAD"sv))
-            {
-                auto statusCode = response.GetStatusCode();
-                if (statusCode != HttpStatusCode::NoContent && statusCode != HttpStatusCode::NotModified)
-                {
-                    LOG_INFO("{} Streaming response body: {}", context, response.GetFraming());
-                    auto buffer = response.GetBufferLeftover();
-                    co_await StreamResponseBody(server, client, buffer, response.GetFraming());
-                }
-            }
+            co_await ForwardResponse(context, server, client, forwardedRequest, response);
         }
     }
 
@@ -431,12 +401,13 @@ namespace winpx
                 failed = true;
             }
 
-            if (failed || response.GetStatusCode() == HttpStatusCode::Unknown)
+            if (failed)
             {
                 DoTraceMessage(WppWarning, "Failed to parse server response: %!str!", ec.message());
 
                 if (!connectionBound && !context.requestBodySent && reconnects++ < maxReconnects)
                 {
+                    context.serverBuffer.clear();
                     server = co_await ConnectTo(proxy.host, proxy.port);
                     continue;
                 }
@@ -461,7 +432,7 @@ namespace winpx
 
             if (!IEquals(request.GetMethod(), "HEAD"sv))
             {
-                auto buffer = response.GetBufferLeftover();
+                auto buffer = context.serverBuffer;
                 response.SetBody(co_await ReadBody(server, buffer, response.GetFraming()));
             }
 
@@ -562,15 +533,13 @@ namespace winpx
             static_cast<int>(context.strategy),
             request.GetRedactedHead());
 
-        std::string buffer;
-
         switch (context.strategy)
         {
         case RequestStrategy::NoBody:
         {
             LOG_INFO("{} Sending request: {}", context, request.GetRequestLine());
             m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, request.GetHead());
-            co_return co_await ReceiveFinalResponse(server, buffer);
+            co_return co_await ReceiveFinalResponse(server, context.serverBuffer);
         }
         case RequestStrategy::StreamBody:
         {
@@ -583,7 +552,7 @@ namespace winpx
             m_proxyStatistics.totalClientBytesReceived += totalBytes;
             m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
 
-            co_return co_await ReceiveFinalResponse(server, buffer);
+            co_return co_await ReceiveFinalResponse(server, context.serverBuffer);
         }
         case RequestStrategy::StreamAndCaptureBody:
         {
@@ -597,7 +566,7 @@ namespace winpx
             m_proxyStatistics.totalClientBytesReceived += totalBytes;
             m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
 
-            co_return co_await ReceiveFinalResponse(server, buffer);
+            co_return co_await ReceiveFinalResponse(server, context.serverBuffer);
         }
         case RequestStrategy::ReplayBody:
         {
@@ -606,7 +575,7 @@ namespace winpx
 
             LOG_INFO("{} Sending request body: {}", context, context.framing);
             m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, context.replayBuffer->GetData());
-            co_return co_await ReceiveFinalResponse(server, buffer);
+            co_return co_await ReceiveFinalResponse(server, context.serverBuffer);
         }
         case RequestStrategy::ClientExpect:
         case RequestStrategy::InsertExpect:
@@ -620,7 +589,7 @@ namespace winpx
             LOG_INFO("{} Sending request, expecting 100-continue: {}", context, request.GetRequestLine());
             m_proxyStatistics.totalUpstreamBytesSent += co_await WriteData(server, head);
 
-            auto [finalResponse, timedOut] = co_await WaitForContinue(server, buffer);
+            auto [finalResponse, timedOut] = co_await WaitForContinue(server, context.serverBuffer);
             if (finalResponse)
             {
                 co_return std::move(*finalResponse);
@@ -645,7 +614,7 @@ namespace winpx
             m_proxyStatistics.totalClientBytesReceived += totalBytes;
             m_proxyStatistics.totalUpstreamBytesSent += totalBytes;
 
-            co_return co_await ReceiveFinalResponse(server, buffer);
+            co_return co_await ReceiveFinalResponse(server, context.serverBuffer);
         }
         default:
             throw HttpError(HttpStatusCode::InternalServerError);
@@ -673,8 +642,7 @@ namespace winpx
                 throw asio::system_error(ec);
             }
 
-            HttpResponseMessage response;
-            response.Parse(buffer, headSize);
+            auto response = ParseResponseHead(buffer, headSize);
 
             auto statusCode = response.GetStatusCode();
             DoTraceMessage(WppVerbose, "Received '%!HttpStatusCode!' response within timeout.", static_cast<int>(statusCode));
@@ -684,12 +652,10 @@ namespace winpx
             }
             else if (GetHttpStatusCategory(statusCode) == HttpStatusCategory::Informational && statusCode != HttpStatusCode::SwitchingProtocols)
             {
-                buffer = response.GetBufferLeftover();
                 continue;
             }
 
             DoTraceMessage(WppVerbose, "response=%!str!", response.GetRedactedHead());
-            buffer.clear();
             co_return WaitForContinueResult(std::move(response), false);
         }
     }
@@ -706,20 +672,33 @@ namespace winpx
                 "\r\n\r\n"sv,
                 asio::cancel_after(m_proxyConfiguration.httpConfiguration.readTimeout, asio::use_awaitable));
 
-            HttpResponseMessage response;
-            response.Parse(buffer, headSize);
+            auto response = ParseResponseHead(buffer, headSize);
 
             auto statusCode = response.GetStatusCode();
             DoTraceMessage(WppVerbose, "Received '%!HttpStatusCode!'.", static_cast<int>(statusCode));
             if (GetHttpStatusCategory(statusCode) == HttpStatusCategory::Informational && statusCode != HttpStatusCode::SwitchingProtocols)
             {
-                buffer = response.GetBufferLeftover();
                 continue;
             }
 
             DoTraceMessage(WppVerbose, "response=%!str!", response.GetRedactedHead());
-            buffer.clear();
             co_return response;
+        }
+    }
+
+    asio::awaitable<void> ProxyRequestHandler::ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, asio::ip::tcp::socket& client, const HttpRequestMessage& request, const HttpResponseMessage& response)
+    {
+        context.responseSent = true;
+        m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.GetHead());
+
+        if (!IEquals(request.GetMethod(), "HEAD"sv))
+        {
+            auto statusCode = response.GetStatusCode();
+            if (statusCode != HttpStatusCode::NoContent && statusCode != HttpStatusCode::NotModified)
+            {
+                LOG_INFO("{} Streaming response body: {}", context, response.GetFraming());
+                co_await StreamResponseBody(server, client, context.serverBuffer, response.GetFraming());
+            }
         }
     }
 
@@ -818,6 +797,38 @@ namespace winpx
                 // Authenticate on head alone, then stream body.
                 return RequestStrategy::InsertExpect;
             }
+        }
+    }
+
+    HttpRequestMessage ProxyRequestHandler::ParseRequestHead(std::string& buffer, size_t headSize)
+    {
+        try
+        {
+            HttpRequestMessage request;
+            request.ParseHead(std::string_view(buffer).substr(0, headSize));
+            buffer.erase(0, headSize);
+            return request;
+        }
+        catch (const std::exception& e)
+        {
+            DoTraceMessage(WppWarning, "Invalid request: %s", e.what());
+            throw HttpError(HttpStatusCode::BadRequest);
+        }
+    }
+
+    HttpResponseMessage ProxyRequestHandler::ParseResponseHead(std::string& buffer, size_t headSize)
+    {
+        try
+        {
+            HttpResponseMessage response;
+            response.ParseHead(std::string_view(buffer).substr(0, headSize));
+            buffer.erase(0, headSize);
+            return response;
+        }
+        catch (const std::exception& e)
+        {
+            DoTraceMessage(WppWarning, "Invalid response: %s", e.what());
+            throw HttpError(HttpStatusCode::BadGateway);
         }
     }
 

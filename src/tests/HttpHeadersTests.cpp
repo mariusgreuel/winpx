@@ -23,8 +23,8 @@ namespace UnitTests
             Add("c"sv, "vc2"sv);
             Add("d"sv, "vd1"sv);
             Add("d"sv, "vd2, vd3, vd4 "sv);
-            Add("e", "");
-            Add("e", "5,, \t,5,");
+            Add("e"sv, ""sv);
+            Add("e"sv, "5,, \t,5,"sv);
             Add("aAa"sv, "va"sv);
         }
     };

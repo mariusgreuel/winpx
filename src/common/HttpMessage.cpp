@@ -7,7 +7,6 @@
 
 #include "HttpMessage.h"
 
-#include "HttpError.h"
 #include "StringHelper.h"
 
 namespace winpx
@@ -47,11 +46,6 @@ namespace winpx
         return uch == '\t' || (uch >= 0x20 && uch != 0x7F);
     }
 
-    std::string HttpMessage::GetBufferLeftover() const
-    {
-        return m_body;
-    }
-
     std::string HttpMessage::GetBody() const
     {
         return m_body;
@@ -86,17 +80,17 @@ namespace winpx
         {
             if (!contentLengths.empty())
             {
-                throw HttpError(HttpStatusCode::BadRequest, "Both Content-Length and Transfer-Encoding headers are present");
+                throw std::runtime_error("Both Content-Length and Transfer-Encoding headers are present");
             }
 
             if (m_version == 10)
             {
-                throw HttpError(HttpStatusCode::BadRequest, "Transfer-Encoding is not allowed in HTTP/1.0 requests");
+                throw std::runtime_error("Transfer-Encoding is not allowed in HTTP/1.0 requests");
             }
 
             if (transferEncodings.size() != 1 || !IEquals(transferEncodings[0], "chunked"sv))
             {
-                throw HttpError(HttpStatusCode::BadRequest, "Unsupported transfer encoding");
+                throw std::runtime_error("Unsupported transfer encoding");
             }
 
             return { true, std::nullopt };
@@ -114,12 +108,12 @@ namespace winpx
                 }
                 catch (const std::exception&)
                 {
-                    throw HttpError(HttpStatusCode::BadRequest, "Invalid Content-Length header.");
+                    throw std::runtime_error("Invalid Content-Length header");
                 }
 
                 if (contentLength && *contentLength != length)
                 {
-                    throw HttpError(HttpStatusCode::BadRequest, "Conflicting Content-Length headers.");
+                    throw std::runtime_error("Conflicting Content-Length headers");
                 }
 
                 contentLength = length;
@@ -182,11 +176,6 @@ namespace winpx
         }
 
         m_version = buffer[7] == '0' ? 10 : 11;
-    }
-
-    std::tuple<std::string, std::string> HttpMessage::SplitMessage(std::string_view message, size_t headSize)
-    {
-        return { std::string(message.substr(0, headSize)), std::string(message.substr(headSize)) };
     }
 
     bool HttpMessage::GetHeaderLine(std::string_view request, size_t& offset, std::string_view& line)

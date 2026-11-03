@@ -20,7 +20,7 @@ namespace UnitTests
     protected:
         void Parse(std::string_view message)
         {
-            m_request.Parse(message);
+            m_request.ParseMessage(message);
             ASSERT_EQ(message, m_request.ToString());
         }
 

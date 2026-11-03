@@ -39,6 +39,7 @@ namespace winpx
         {
             size_t m_requestId = 0;
             std::string clientBuffer;
+            std::string serverBuffer;
             std::unique_ptr<HttpReplayBuffer> replayBuffer;
             HttpMessageFraming framing;
             RequestStrategy strategy = RequestStrategy::NoBody;
@@ -70,6 +71,7 @@ namespace winpx
         asio::awaitable<HttpResponseMessage> SendRequest(RequestContext& context, asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, const HttpRequestMessage& request);
         asio::awaitable<WaitForContinueResult> WaitForContinue(asio::ip::tcp::socket& server, std::string& buffer) const;
         asio::awaitable<HttpResponseMessage> ReceiveFinalResponse(asio::ip::tcp::socket& server, std::string& buffer) const;
+        asio::awaitable<void> ForwardResponse(RequestContext& context, asio::ip::tcp::socket& server, asio::ip::tcp::socket& client, const HttpRequestMessage& request, const HttpResponseMessage& response);
 
         bool IsRequestToWebServer(const HttpRequestMessage& request) const;
         bool IsRequestToWebServer(const Uri& target) const;
@@ -78,6 +80,8 @@ namespace winpx
         std::string CreateViaThisProxy(const HttpRequestMessage& request) const;
 
         RequestStrategy SelectRequestStrategy(const HttpRequestMessage& request, const HttpMessageFraming& framing, bool direct) const;
+        static HttpRequestMessage ParseRequestHead(std::string& buffer, size_t headSize);
+        static HttpResponseMessage ParseResponseHead(std::string& buffer, size_t headSize);
         static AuthenticationSchemes ParseAuthenticationOffer(const HttpResponseMessage& response);
         static std::vector<std::byte> ParseAuthenticationToken(const HttpResponseMessage& response, std::string_view scheme);
         static std::tuple<std::string_view, std::string_view> SplitAuthenticationHeader(std::string_view value);

@@ -11,14 +11,14 @@
 
 namespace winpx
 {
-    void HttpHeaders::Add(std::string_view name, std::string_view value)
+    void HttpHeaders::Add(std::string name, std::string value)
     {
         m_headers.emplace_back(HttpHeader{ name, value });
     }
 
-    void HttpHeaders::Add(const HttpHeader& header)
+    void HttpHeaders::Add(std::string_view name, std::string_view value)
     {
-        m_headers.push_back(header);
+        m_headers.emplace_back(HttpHeader{ name, value });
     }
 
     void HttpHeaders::Add(const HttpHeaders& headers)

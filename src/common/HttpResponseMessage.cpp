@@ -20,7 +20,7 @@ namespace winpx
     {
         for (const auto& header : headers)
         {
-            m_headers.Add(header);
+            m_headers.Add(header.name, header.value);
         }
     }
 
@@ -57,22 +57,17 @@ namespace winpx
         return GetHead() + GetBody();
     }
 
-    void HttpResponseMessage::Parse(std::string_view message)
+    void HttpResponseMessage::ParseMessage(std::string_view buffer)
     {
-        auto headEnd = message.find("\r\n\r\n");
+        auto headEnd = buffer.find("\r\n\r\n");
         if (headEnd == std::string::npos)
         {
-            throw std::runtime_error("Invalid HTTP message.");
+            throw std::runtime_error("Invalid HTTP message");
         }
 
-        Parse(message, headEnd + 4);
-    }
+        ParseHead(buffer.substr(0, headEnd + 4));
 
-    void HttpResponseMessage::Parse(std::string_view message, size_t headSize)
-    {
-        std::string head;
-        std::tie(head, m_body) = SplitMessage(message, headSize);
-        ParseHead(head);
+        m_body = std::string(buffer.substr(headEnd + 4));
     }
 
     void HttpResponseMessage::ParseHead(std::string_view buffer)
@@ -93,16 +88,22 @@ namespace winpx
 
         std::string_view httpVersion;
         if (!GetSubstring(buffer, offset, httpVersion, ' '))
-            throw std::runtime_error("Missing HTTP version.");
+        {
+            throw std::runtime_error("Missing HTTP version");
+        }
 
         std::string_view statusCode;
         if (!GetSubstring(buffer, offset, statusCode, ' '))
-            throw std::runtime_error("Missing HTTP status code.");
+        {
+            throw std::runtime_error("Missing HTTP status code");
+        }
 
         ParseHttpVersion(httpVersion);
 
         if (statusCode.size() != 3)
-            throw std::runtime_error("Invalid HTTP status code.");
+        {
+            throw std::runtime_error("Invalid HTTP status code");
+        }
 
         m_statusCode = static_cast<HttpStatusCode>(ParseDec(statusCode));
         m_reasonPhrase = buffer.substr(offset);
