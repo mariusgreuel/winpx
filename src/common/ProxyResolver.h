@@ -11,6 +11,7 @@ namespace winpx
 {
     struct ProxyResolverResult
     {
+        std::error_code error;
         bool direct = true;
         std::string host;
         uint16_t port = 0;
@@ -29,14 +30,18 @@ namespace winpx
 
         void ReloadSystemSettings();
         ProxyResolverResult ResolveProxy(const std::string& url) const;
+        asio::awaitable<ProxyResolverResult> ResolveProxyAsync(const std::string& url) const;
 
     private:
-        ProxyResolverResult GetProxyFromSystem(const std::string& url) const;
-        ProxyResolverResult GetProxyFromDirect(const std::string& url) const;
-        ProxyResolverResult GetProxyFromManual(const std::string& url) const;
-        ProxyResolverResult GetProxyFromAutoConfig(const std::string& url) const;
-        ProxyResolverResult GetProxyFromAutoDetect(const std::string& url) const;
-        ProxyResolverResult GetProxyFromOptions(const std::string& url, WINHTTP_AUTOPROXY_OPTIONS& options) const;
+        asio::awaitable<ProxyResolverResult> GetProxyFromSystem(const std::string& url) const;
+        asio::awaitable<ProxyResolverResult> GetProxyFromDirect(const std::string& url) const;
+        asio::awaitable<ProxyResolverResult> GetProxyFromManual(const std::string& url) const;
+        asio::awaitable<ProxyResolverResult> GetProxyFromAutoConfig(const std::string& url) const;
+        asio::awaitable<ProxyResolverResult> GetProxyFromAutoDetect(const std::string& url) const;
+        asio::awaitable<ProxyResolverResult> GetProxyFromOptions(DWORD dwFlags, const std::string& url, const std::string& autoConfigUrl) const;
+        asio::awaitable<ProxyResolverResult> GetProxyFromOptions(DWORD dwFlags, const std::string& url, const std::string& autoConfigUrl, bool autoLogonIfChallenged) const;
+
+        static void CALLBACK OnAsyncStatusCallback(HINTERNET handle, DWORD_PTR context, DWORD status, LPVOID statusInformation, DWORD statusInformationLength);
 
         void OpenSession();
         void CloseSession();

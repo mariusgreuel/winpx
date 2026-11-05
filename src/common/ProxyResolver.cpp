@@ -20,6 +20,59 @@ namespace winpx
     using namespace std::literals::string_view_literals;
     using namespace win32;
 
+    namespace
+    {
+        struct AsyncProxyRequest
+        {
+            HINTERNET resolver = nullptr;
+            std::wstring url;
+            std::wstring autoConfigUrl;
+            WINHTTP_AUTOPROXY_OPTIONS options{};
+            std::function<void(ProxyResolverResult)> complete;
+
+            ~AsyncProxyRequest()
+            {
+                if (resolver != nullptr)
+                {
+                    WinHttpCloseHandle(resolver);
+                }
+            }
+        };
+
+        ProxyResolverResult GetResultFromResolver(const AsyncProxyRequest& request)
+        {
+            WINHTTP_PROXY_RESULT proxyResult{};
+            DWORD dwError = WinHttpGetProxyResult(request.resolver, &proxyResult);
+            if (dwError != ERROR_SUCCESS)
+            {
+                DoTraceMessage(WppError, "WinHttpGetProxyResult failed: %!WINERROR!", dwError);
+                return ProxyResolverResult{ std::error_code(dwError, std::system_category()) };
+            }
+
+            ProxyResolverResult result;
+            for (DWORD i = 0; i < proxyResult.cEntries; i++)
+            {
+                const auto& entry = proxyResult.pEntries[i];
+                if (entry.fProxy && entry.pwszProxy != nullptr)
+                {
+                    result.direct = false;
+                    result.host = Unicode::ToUtf8(entry.pwszProxy);
+                    result.port = entry.ProxyPort;
+                    DoTraceMessage(WppVerbose, "Resolved proxy '%!str!:%d' for '%!wstr!'", result.host, result.port, request.url);
+                    break;
+                }
+            }
+
+            if (result.direct)
+            {
+                DoTraceMessage(WppVerbose, "Using DIRECT connection for '%!wstr!'", request.url);
+            }
+
+            WinHttpFreeProxyResult(&proxyResult);
+            return result;
+        }
+    }
+
     ProxyResolver::ProxyResolver(const ProxyConfiguration& proxyConfiguration) :
         m_proxyConfiguration(proxyConfiguration)
     {
@@ -53,66 +106,67 @@ namespace winpx
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: url='%!str!', proxyMode=%!ProxyMode!", url, static_cast<int>(m_proxyConfiguration.proxyMode));
 
+        asio::io_context ioContext;
+        auto future = asio::co_spawn(ioContext, ResolveProxyAsync(url), asio::use_future);
+        ioContext.run();
+        return future.get();
+    }
+
+    asio::awaitable<ProxyResolverResult> ProxyResolver::ResolveProxyAsync(const std::string& url) const
+    {
+        DoTraceMessage(WppVerbose, "%!FUNC!: url='%!str!', proxyMode=%!ProxyMode!", url, static_cast<int>(m_proxyConfiguration.proxyMode));
+
         switch (m_proxyConfiguration.proxyMode)
         {
         case ProxyMode::Default:
         case ProxyMode::System:
-            return GetProxyFromSystem(url);
+            co_return co_await GetProxyFromSystem(url);
         case ProxyMode::Direct:
-            return GetProxyFromDirect(url);
+            co_return co_await GetProxyFromDirect(url);
         case ProxyMode::Manual:
-            return GetProxyFromManual(url);
+            co_return co_await GetProxyFromManual(url);
         case ProxyMode::AutoConfig:
-            return GetProxyFromAutoConfig(url);
+            co_return co_await GetProxyFromAutoConfig(url);
         case ProxyMode::AutoDetect:
-            return GetProxyFromAutoDetect(url);
+            co_return co_await GetProxyFromAutoDetect(url);
         default:
             throw std::invalid_argument("Invalid proxy mode.");
         }
     }
 
-    ProxyResolverResult ProxyResolver::GetProxyFromSystem(const std::string& url) const
+    asio::awaitable<ProxyResolverResult> ProxyResolver::GetProxyFromSystem(const std::string& url) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: url='%!str!'", url);
 
         auto systemProxyConfiguration = m_systemProxyConfiguration.load();
-
         if (!systemProxyConfiguration->autoConfigUrl.empty())
         {
-            auto autoConfigUrlW = Unicode::FromUtf8(systemProxyConfiguration->autoConfigUrl);
-
-            WINHTTP_AUTOPROXY_OPTIONS options{};
-            options.dwFlags = WINHTTP_AUTOPROXY_CONFIG_URL;
-            options.lpszAutoConfigUrl = autoConfigUrlW.c_str();
-            return GetProxyFromOptions(url, options);
+            co_return co_await GetProxyFromOptions(WINHTTP_AUTOPROXY_CONFIG_URL, url, systemProxyConfiguration->autoConfigUrl);
+        }
+        else if (systemProxyConfiguration->autoDetect && systemProxyConfiguration->proxy.empty())
+        {
+            co_return co_await GetProxyFromOptions(WINHTTP_AUTOPROXY_AUTO_DETECT, url, {});
         }
         else if (!systemProxyConfiguration->proxy.empty())
         {
             Uri proxy(PickProxyFromList(systemProxyConfiguration->proxy, url));
             DoTraceMessage(WppVerbose, "Using system proxy '%!sv!:%d' for '%!str!'", proxy.host, proxy.port, url);
-            return { proxy.IsEmpty(), proxy.GetHost(), proxy.GetPort() };
-        }
-        else if (systemProxyConfiguration->autoDetect)
-        {
-            WINHTTP_AUTOPROXY_OPTIONS options{};
-            options.dwFlags = WINHTTP_AUTOPROXY_AUTO_DETECT;
-            options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
-            return GetProxyFromOptions(url, options);
+            co_return ProxyResolverResult{ {}, proxy.IsEmpty(), proxy.GetHost(), proxy.GetPort() };
         }
         else
         {
             DoTraceMessage(WppVerbose, "No system proxy configured for '%!str!', using DIRECT.", url);
-            return {};
+            co_return ProxyResolverResult{};
         }
     }
 
-    ProxyResolverResult ProxyResolver::GetProxyFromDirect(const std::string& url) const
+    asio::awaitable<ProxyResolverResult> ProxyResolver::GetProxyFromDirect(const std::string& url) const
     {
         DoTraceMessage(WppVerbose, "No proxy configured for '%!str!', using DIRECT.", url);
-        return {};
+        co_return ProxyResolverResult{};
     }
 
-    ProxyResolverResult ProxyResolver::GetProxyFromManual(const std::string& url) const
+    asio::awaitable<ProxyResolverResult> ProxyResolver::GetProxyFromManual(const std::string& url) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: url='%!str!', httpProxyUrl='%!str!', httpsProxyUrl='%!str!'",
             url,
@@ -127,80 +181,127 @@ namespace winpx
         if (proxy.empty())
         {
             DoTraceMessage(WppWarning, "No manual proxy configured for '%!str!', using DIRECT.", url);
-            return {};
+            co_return ProxyResolverResult{};
         }
 
         Uri uri(proxy);
         DoTraceMessage(WppVerbose, "Using manual proxy '%!sv!:%d' for '%!str!'", uri.host, uri.port, url);
-        return { uri.IsEmpty(), uri.GetHost(), uri.GetPort() };
+        co_return ProxyResolverResult{ {}, uri.IsEmpty(), uri.GetHost(), uri.GetPort() };
     }
 
-    ProxyResolverResult ProxyResolver::GetProxyFromAutoConfig(const std::string& url) const
+    asio::awaitable<ProxyResolverResult> ProxyResolver::GetProxyFromAutoConfig(const std::string& url) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: url='%!str!', autoConfigUrl='%!str!'", url, m_proxyConfiguration.autoConfigUrl);
 
         if (m_proxyConfiguration.autoConfigUrl.empty())
         {
             DoTraceMessage(WppWarning, "No PAC URL configured for '%!str!', using DIRECT.", url);
-            return {};
+            co_return ProxyResolverResult{};
         }
 
-        auto autoConfigUrlW = Unicode::FromUtf8(m_proxyConfiguration.autoConfigUrl);
-
-        WINHTTP_AUTOPROXY_OPTIONS options{};
-        options.dwFlags = WINHTTP_AUTOPROXY_CONFIG_URL;
-        options.lpszAutoConfigUrl = autoConfigUrlW.c_str();
-        return GetProxyFromOptions(url, options);
+        co_return co_await GetProxyFromOptions(WINHTTP_AUTOPROXY_CONFIG_URL, url, m_proxyConfiguration.autoConfigUrl);
     }
 
-    ProxyResolverResult ProxyResolver::GetProxyFromAutoDetect(const std::string& url) const
+    asio::awaitable<ProxyResolverResult> ProxyResolver::GetProxyFromAutoDetect(const std::string& url) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: url='%!str!'", url);
 
-        WINHTTP_AUTOPROXY_OPTIONS options{};
-        options.dwFlags = WINHTTP_AUTOPROXY_AUTO_DETECT;
-        options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
-        return GetProxyFromOptions(url, options);
+        co_return co_await GetProxyFromOptions(WINHTTP_AUTOPROXY_AUTO_DETECT, url, {});
     }
 
-    ProxyResolverResult ProxyResolver::GetProxyFromOptions(const std::string& url, WINHTTP_AUTOPROXY_OPTIONS& options) const
+    asio::awaitable<ProxyResolverResult> ProxyResolver::GetProxyFromOptions(DWORD dwFlags, const std::string& url, const std::string& autoConfigUrl) const
     {
-        options.fAutoLogonIfChallenged = TRUE;
-
-        std::string host;
-        uint16_t port = 0;
-
-        WINHTTP_PROXY_INFO proxyInfo{};
-        if (!WinHttpGetProxyForUrl(m_session, Unicode::FromUtf8(url).c_str(), &options, &proxyInfo))
+        ProxyResolverResult result = co_await GetProxyFromOptions(dwFlags, url, autoConfigUrl, false);
+        if (result.error && result.error.value() == ERROR_WINHTTP_LOGIN_FAILURE)
         {
-            DWORD dwError = GetLastError();
-            DoTraceMessage(WppError, "WinHttpGetProxyForUrl failed: %!WINERROR!", dwError);
-        }
-        else if (proxyInfo.dwAccessType == WINHTTP_ACCESS_TYPE_NO_PROXY)
-        {
-            DoTraceMessage(WppVerbose, "Using DIRECT connection for '%!str!'", url);
-        }
-        else if (proxyInfo.lpszProxy != nullptr)
-        {
-            auto proxy = PickProxyFromList(Unicode::ToUtf8(proxyInfo.lpszProxy), url);
-
-            Uri uri(proxy);
-            host = uri.GetHost();
-            port = uri.GetPort();
-            DoTraceMessage(WppVerbose, "Resolved proxy '%!sv!:%d' for '%!str!'", host, port, url);
+            DoTraceMessage(WppWarning, "WinHttpGetProxyForUrlEx failed with ERROR_WINHTTP_LOGIN_FAILURE, retrying with autoLogonIfChallenged=TRUE.");
+            result = co_await GetProxyFromOptions(dwFlags, url, autoConfigUrl, true);
         }
 
-        if (proxyInfo.lpszProxy != nullptr)
+        co_return result;
+    }
+
+    asio::awaitable<ProxyResolverResult> ProxyResolver::GetProxyFromOptions(DWORD dwFlags, const std::string& url, const std::string& autoConfigUrl, bool autoLogonIfChallenged) const
+    {
+        auto request = std::make_unique<AsyncProxyRequest>();
+        request->url = Unicode::FromUtf8(url);
+        request->autoConfigUrl = Unicode::FromUtf8(autoConfigUrl);
+        request->options.dwFlags = dwFlags;
+        request->options.fAutoLogonIfChallenged = autoLogonIfChallenged ? TRUE : FALSE;
+
+        if ((dwFlags & WINHTTP_AUTOPROXY_CONFIG_URL) != 0)
         {
-            GlobalFree(proxyInfo.lpszProxy);
+            request->options.lpszAutoConfigUrl = request->autoConfigUrl.c_str();
         }
 
-        if (proxyInfo.lpszProxyBypass != nullptr)
+        if ((dwFlags & WINHTTP_AUTOPROXY_AUTO_DETECT) != 0)
         {
-            GlobalFree(proxyInfo.lpszProxyBypass);
+            request->options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
         }
 
-        return { host.empty(), host, port };
+        co_return co_await asio::async_initiate<decltype(asio::use_awaitable), void(ProxyResolverResult)>(
+            [this, request = std::move(request)](auto handler) mutable {
+                auto sharedHandler = std::make_shared<decltype(handler)>(std::move(handler));
+                request->complete = [sharedHandler](ProxyResolverResult result) {
+                    auto executor = asio::get_associated_executor(*sharedHandler);
+                    asio::post(executor, [sharedHandler, result = std::move(result)]() mutable {
+                        std::move (*sharedHandler)(std::move(result));
+                    });
+                };
+
+                DWORD dwError = WinHttpCreateProxyResolver(m_session, &request->resolver);
+                if (dwError != ERROR_SUCCESS)
+                {
+                    DoTraceMessage(WppError, "WinHttpCreateProxyResolver failed: %!WINERROR!", dwError);
+                    request->complete({ std::error_code(dwError, std::system_category()) });
+                    return;
+                }
+
+                dwError = WinHttpGetProxyForUrlEx(
+                    request->resolver,
+                    request->url.c_str(),
+                    &request->options,
+                    reinterpret_cast<DWORD_PTR>(request.get()));
+                if (dwError == ERROR_IO_PENDING)
+                {
+                    request.release();
+                }
+                else if (dwError == ERROR_SUCCESS)
+                {
+                    request->complete(GetResultFromResolver(*request));
+                }
+                else
+                {
+                    DoTraceMessage(WppError, "WinHttpGetProxyForUrlEx failed: %!WINERROR!", dwError);
+                    request->complete({ std::error_code(dwError, std::system_category()) });
+                }
+            },
+            asio::use_awaitable);
+    }
+
+    void CALLBACK ProxyResolver::OnAsyncStatusCallback(HINTERNET hInternet, DWORD_PTR dwContext, DWORD dwInternetStatus, LPVOID lpvStatusInformation, DWORD dwStatusInformationLength)
+    {
+        UNREFERENCED_PARAMETER(hInternet);
+        UNREFERENCED_PARAMETER(dwStatusInformationLength);
+
+        if (dwContext == 0)
+        {
+            return;
+        }
+
+        if (dwInternetStatus == WINHTTP_CALLBACK_STATUS_GETPROXYFORURL_COMPLETE)
+        {
+            std::unique_ptr<AsyncProxyRequest> request(reinterpret_cast<AsyncProxyRequest*>(dwContext));
+            request->complete(GetResultFromResolver(*request));
+        }
+        else if (dwInternetStatus == WINHTTP_CALLBACK_STATUS_REQUEST_ERROR)
+        {
+            std::unique_ptr<AsyncProxyRequest> request(reinterpret_cast<AsyncProxyRequest*>(dwContext));
+            auto asyncResult = static_cast<const WINHTTP_ASYNC_RESULT*>(lpvStatusInformation);
+            DWORD dwError = asyncResult != nullptr ? asyncResult->dwError : ERROR_WINHTTP_INTERNAL_ERROR;
+            DoTraceMessage(WppError, "WinHttpGetProxyForUrlEx failed: %!WINERROR!", dwError);
+            request->complete({});
+        }
     }
 
     void ProxyResolver::OpenSession()
@@ -214,12 +315,23 @@ namespace winpx
             WINHTTP_ACCESS_TYPE_NO_PROXY,
             WINHTTP_NO_PROXY_NAME,
             WINHTTP_NO_PROXY_BYPASS,
-            0);
+            WINHTTP_FLAG_ASYNC);
         if (!m_session)
         {
             DWORD dwError = GetLastError();
             DoTraceMessage(WppError, "WinHttpOpen failed: %!WINERROR!", dwError);
-            throw Win32Error(dwError, "Failed to open WinHTTP session.");
+            throw Win32Error(dwError, "Failed to open asynchronous WinHTTP session.");
+        }
+
+        if (WinHttpSetStatusCallback(
+                m_session,
+                &ProxyResolver::OnAsyncStatusCallback,
+                WINHTTP_CALLBACK_FLAG_REQUEST_ERROR | WINHTTP_CALLBACK_FLAG_GETPROXYFORURL_COMPLETE,
+                0) == WINHTTP_INVALID_STATUS_CALLBACK)
+        {
+            DWORD dwError = GetLastError();
+            DoTraceMessage(WppError, "WinHttpSetStatusCallback failed: %!WINERROR!", dwError);
+            throw Win32Error(dwError, "Failed to set WinHTTP status callback.");
         }
     }
 

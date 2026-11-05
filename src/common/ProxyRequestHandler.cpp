@@ -274,7 +274,7 @@ namespace winpx
             target.port = 443;
         }
 
-        auto proxy = m_proxyResolver.ResolveProxy(std::format("https://{}/", target.GetHostAndPort()));
+        ProxyResolverResult proxy = co_await m_proxyResolver.ResolveProxyAsync(std::format("https://{}/", target.GetHostAndPort()));
         if (proxy.direct)
         {
             DoTraceMessage(WppVerbose, "CONNECT tunnel via DIRECT connection to '%!str!'", target.ToString());
@@ -348,7 +348,7 @@ namespace winpx
         forwardedRequest.GetHeaders().Replace("Host"sv, target.GetHostAndPort());
         forwardedRequest.GetHeaders().Replace("Via"sv, CreateViaThisProxy(context.request));
 
-        auto proxy = m_proxyResolver.ResolveProxy(target.ToString());
+        ProxyResolverResult proxy = co_await m_proxyResolver.ResolveProxyAsync(target.ToString());
         context.requestStrategy = SelectRequestStrategy(context.request, context.requestFraming, proxy.direct);
 
         if (proxy.direct)
