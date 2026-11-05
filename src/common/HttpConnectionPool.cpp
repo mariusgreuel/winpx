@@ -27,61 +27,56 @@ namespace winpx
 
         auto now = std::chrono::steady_clock::now();
 
-        std::lock_guard lock(m_mutex);
-
-        auto it = m_connections.find(key);
-        if (it == m_connections.end())
+        while (true)
         {
-            DoTraceMessage(WppVerbose, "No hit for '%!str!'", key);
-            return std::nullopt;
+            auto connection = PopConnection(key);
+            if (!connection)
+            {
+                DoTraceMessage(WppVerbose, "No hit for '%!str!'", key);
+                return std::nullopt;
+            }
+
+            if (!IsStale(*connection, now))
+            {
+                if (IsConnectionAlive(connection->socket))
+                {
+                    asio::error_code ec;
+                    DoTraceMessage(WppVerbose, "Reusing connection [%u/%u] from pool", connection->socket.local_endpoint(ec).port(), connection->socket.remote_endpoint(ec).port());
+                    return std::move(connection->socket);
+                }
+                else
+                {
+                    asio::error_code ec;
+                    DoTraceMessage(WppWarning, "Connection [%u/%u] died", connection->socket.local_endpoint(ec).port(), connection->socket.remote_endpoint(ec).port());
+                }
+            }
+
+            asio::error_code ec;
+            DoTraceMessage(WppVerbose, "Closing stale socket [%u/%u]", connection->socket.local_endpoint(ec).port(), connection->socket.remote_endpoint(ec).port());
+            connection->socket.close(ec);
         }
-
-        auto& connections = it->second;
-        RemoveStaleConnections(connections, now);
-
-        if (connections.empty())
-        {
-            DoTraceMessage(WppVerbose, "No suitable socket found");
-            m_connections.erase(it);
-            return std::nullopt;
-        }
-
-        asio::ip::tcp::socket socket = std::move(connections.back().socket);
-        connections.pop_back();
-
-        if (connections.empty())
-        {
-            m_connections.erase(it);
-        }
-
-        DoTraceMessage(WppVerbose, "Reusing socket [%u/%u]", socket.local_endpoint().port(), socket.remote_endpoint().port());
-        return socket;
     }
 
     void HttpConnectionPool::Release(const std::string& key, asio::ip::tcp::socket socket)
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: key=%!str!", key);
 
+        RemoveStaleConnections(key);
+
         if (!socket.is_open())
         {
             return;
         }
 
-        auto now = std::chrono::steady_clock::now();
+        asio::error_code ec;
+        DoTraceMessage(WppVerbose, "Releasing socket [%u/%u] back to the pool", socket.local_endpoint(ec).port(), socket.remote_endpoint(ec).port());
 
-        std::lock_guard lock(m_mutex);
-
-        auto& connections = m_connections[key];
-        RemoveStaleConnections(connections, now);
-
-        if (connections.size() >= m_httpConfiguration.maxIdleServerConnectionsPerHost)
+        auto oldConnection = PushConnection(key, { std::move(socket), std::chrono::steady_clock::now() });
+        if (oldConnection)
         {
-            CloseSocket(socket, "pool is full");
-            return;
+            DoTraceMessage(WppVerbose, "Evicting socket [%u/%u] because the pool is full", oldConnection->socket.local_endpoint(ec).port(), oldConnection->socket.remote_endpoint(ec).port());
+            oldConnection->socket.close(ec);
         }
-
-        DoTraceMessage(WppVerbose, "Releasing socket [%u/%u] back to the pool", socket.local_endpoint().port(), socket.remote_endpoint().port());
-        connections.push_back({ std::move(socket), now });
     }
 
     void HttpConnectionPool::Clear()
@@ -90,15 +85,17 @@ namespace winpx
 
         std::lock_guard lock(m_mutex);
 
-        for (auto& [key, connections] : m_connections)
+        for (auto& [key, connections] : m_pool)
         {
             for (auto& connection : connections)
             {
-                CloseSocket(connection.socket, "pool cleared");
+                asio::error_code ec;
+                DoTraceMessage(WppVerbose, "Closing socket [%u/%u]", connection.socket.local_endpoint(ec).port(), connection.socket.remote_endpoint(ec).port());
+                connection.socket.close(ec);
             }
         }
 
-        m_connections.clear();
+        m_pool.clear();
     }
 
     std::string HttpConnectionPool::MakeKey(bool direct, std::string_view host, uint16_t port)
@@ -106,24 +103,95 @@ namespace winpx
         return std::format("{}:{}:{}", direct ? "direct"sv : "proxy"sv, host, port);
     }
 
-    void HttpConnectionPool::RemoveStaleConnections(std::vector<Connection>& connections, std::chrono::steady_clock::time_point now)
+    bool HttpConnectionPool::IsStale(const HttpConnectionPool::Connection& connection, std::chrono::steady_clock::time_point now) const
     {
-        std::erase_if(connections, [&](auto& connection) {
-            if (now - connection.idleSince >= m_httpConfiguration.serverIdleTimeout || !IsConnectionAlive(connection.socket))
-            {
-                CloseSocket(connection.socket, "stale");
-                return true;
-            }
-
-            return false;
-        });
+        return now - connection.idleSince >= m_httpConfiguration.serverIdleTimeout;
     }
 
-    void HttpConnectionPool::CloseSocket(asio::ip::tcp::socket& socket, const char* reason)
+    void HttpConnectionPool::RemoveStaleConnections(const std::string& key)
     {
-        asio::error_code ec;
-        DoTraceMessage(WppVerbose, "Closing socket [%u/%u]: %s", socket.local_endpoint(ec).port(), socket.remote_endpoint(ec).port(), reason);
-        socket.close(ec);
+        auto now = std::chrono::steady_clock::now();
+
+        std::vector<asio::ip::tcp::socket> staleSockets;
+
+        {
+            std::lock_guard lock(m_mutex);
+
+            auto it = m_pool.find(key);
+            if (it == m_pool.end())
+            {
+                return;
+            }
+
+            auto& connections = it->second;
+            std::erase_if(connections, [&](Connection& connection) {
+                if (IsStale(connection, now))
+                {
+                    staleSockets.push_back(std::move(connection.socket));
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            });
+
+            if (connections.empty())
+            {
+                m_pool.erase(it);
+            }
+        }
+
+        for (auto& socket : staleSockets)
+        {
+            asio::error_code ec;
+            DoTraceMessage(WppVerbose, "Closing stale socket [%u/%u]", socket.local_endpoint(ec).port(), socket.remote_endpoint(ec).port());
+            socket.close(ec);
+        }
+    }
+
+    std::optional<HttpConnectionPool::Connection> HttpConnectionPool::PushConnection(const std::string& key, Connection connection)
+    {
+        std::lock_guard lock(m_mutex);
+
+        auto& connections = m_pool[key];
+        connections.push_back(std::move(connection));
+        if (connections.size() > m_httpConfiguration.maxIdleServerConnectionsPerHost)
+        {
+            Connection oldConnection = std::move(connections.front());
+            connections.pop_front();
+            return oldConnection;
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<HttpConnectionPool::Connection> HttpConnectionPool::PopConnection(const std::string& key)
+    {
+        std::lock_guard lock(m_mutex);
+
+        auto it = m_pool.find(key);
+        if (it == m_pool.end())
+        {
+            return std::nullopt;
+        }
+
+        auto& connections = it->second;
+        if (!connections.empty())
+        {
+            Connection connection = std::move(connections.back());
+            connections.pop_back();
+
+            if (connections.empty())
+            {
+                m_pool.erase(it);
+            }
+
+            return connection;
+        }
+
+        m_pool.erase(it);
+        return std::nullopt;
     }
 
     bool HttpConnectionPool::IsConnectionAlive(asio::ip::tcp::socket& socket)
@@ -145,6 +213,11 @@ namespace winpx
         bool alive = ec == asio::error::would_block;
 
         socket.non_blocking(false, ec);
-        return alive && !ec;
+        if (ec)
+        {
+            return false;
+        }
+
+        return alive;
     }
 }

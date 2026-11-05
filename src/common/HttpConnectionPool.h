@@ -6,16 +6,14 @@
 #pragma once
 #include "HttpConfiguration.h"
 
-#include <asio/ip/tcp.hpp>
-
 #include <chrono>
 #include <cstdint>
+#include <deque>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <vector>
 
 namespace winpx
 {
@@ -41,13 +39,15 @@ namespace winpx
             std::chrono::steady_clock::time_point idleSince;
         };
 
-        void RemoveStaleConnections(std::vector<Connection>& connections, std::chrono::steady_clock::time_point now);
+        bool IsStale(const Connection& connection, std::chrono::steady_clock::time_point now) const;
+        void RemoveStaleConnections(const std::string& key);
+        std::optional<Connection> PushConnection(const std::string& key, Connection connection);
+        std::optional<Connection> PopConnection(const std::string& key);
         static bool IsConnectionAlive(asio::ip::tcp::socket& socket);
-        static void CloseSocket(asio::ip::tcp::socket& socket, const char* reason);
 
     private:
         const HttpConfiguration& m_httpConfiguration;
         std::mutex m_mutex;
-        std::unordered_map<std::string, std::vector<Connection>> m_connections;
+        std::unordered_map<std::string, std::deque<Connection>> m_pool;
     };
 }
