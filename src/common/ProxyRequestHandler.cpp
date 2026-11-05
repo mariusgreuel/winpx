@@ -108,11 +108,11 @@ namespace winpx
                 }
                 else if (ec == asio::error::not_found)
                 {
-                    throw HttpError(HttpStatusCode::RequestHeaderFieldsTooLarge);
+                    throw HttpError(ec.message().c_str(), HttpStatusCode::RequestHeaderFieldsTooLarge);
                 }
                 else if (ec == asio::error::operation_aborted || ec == asio::error::timed_out)
                 {
-                    throw HttpError(HttpStatusCode::RequestTimeout);
+                    throw HttpError(ec.message().c_str(), HttpStatusCode::RequestTimeout);
                 }
                 else if (ec)
                 {
@@ -142,12 +142,14 @@ namespace winpx
         catch (const HttpError& e)
         {
             DoTraceMessage(WppWarning, "HTTP error: %s", e.what());
+            LOG_WARNING("{} {}", context, e.what());
             error = e;
             m_proxyStatistics.errors += 1;
         }
         catch (const std::exception& e)
         {
             DoTraceMessage(WppWarning, "std::exception: %s", e.what());
+            LOG_WARNING("{} {}", context, e.what());
             error = HttpError(HttpStatusCode::BadGateway);
             m_proxyStatistics.errors += 1;
         }
@@ -161,7 +163,7 @@ namespace winpx
                         { "Content-Length"sv, "0"sv },
                         { "Connection"sv, "close"sv },
                     });
-                LOG_WARNING("{} Writing response: {}", context, response.GetStatusLine());
+                LOG_INFO("{} Writing response: {}", context, response.GetStatusLine());
                 m_proxyStatistics.totalClientBytesSent += co_await WriteData(client, response.ToString());
             }
             catch (const std::exception& e)
@@ -466,7 +468,7 @@ namespace winpx
                     continue;
                 }
 
-                throw HttpError(ec == asio::error::operation_aborted ? HttpStatusCode::GatewayTimeout : HttpStatusCode::BadGateway);
+                throw HttpError(ec.message().c_str(), ec == asio::error::operation_aborted ? HttpStatusCode::GatewayTimeout : HttpStatusCode::BadGateway);
             }
 
             if (response.GetStatusCode() != HttpStatusCode::ProxyAuthenticationRequired)
@@ -487,7 +489,7 @@ namespace winpx
                 if (!context.replayBuffer || context.replayBuffer->IsOverflow())
                 {
                     DoTraceMessage(WppWarning, "Proxy authentication requested after the request body was sent.");
-                    throw HttpError(HttpStatusCode::BadGateway, "Request body cannot be replayed");
+                    throw HttpError("Request body cannot be replayed", HttpStatusCode::BadGateway);
                 }
 
                 context.requestStrategy = RequestStrategy::ReplayBody;
@@ -559,7 +561,7 @@ namespace winpx
                 if ((status != SEC_E_OK && status != SEC_I_CONTINUE_NEEDED) || outgoing.empty())
                 {
                     DoTraceMessage(WppWarning, "Authentication handshake failed: %!WINERROR!", status);
-                    throw HttpError(HttpStatusCode::BadGateway, "Upstream proxy authentication failed");
+                    throw HttpError(std::error_code(status, std::system_category()).message().c_str(), HttpStatusCode::BadGateway, "Upstream proxy authentication failed");
                 }
 
                 request.GetHeaders().Replace("Proxy-Authorization"sv, ToString(authenticationScheme) + " " + Base64::Encode(outgoing));
@@ -873,7 +875,7 @@ namespace winpx
         catch (const std::exception& e)
         {
             DoTraceMessage(WppWarning, "Invalid request: %s", e.what());
-            throw HttpError(HttpStatusCode::BadRequest);
+            throw HttpError(e.what(), HttpStatusCode::BadRequest);
         }
     }
 
@@ -889,7 +891,7 @@ namespace winpx
         catch (const std::exception& e)
         {
             DoTraceMessage(WppWarning, "Invalid response: %s", e.what());
-            throw HttpError(HttpStatusCode::BadGateway);
+            throw HttpError(e.what(), HttpStatusCode::BadGateway);
         }
     }
 
@@ -902,7 +904,7 @@ namespace winpx
         catch (const std::exception& e)
         {
             DoTraceMessage(WppWarning, "Invalid request framing: %s", e.what());
-            throw HttpError(HttpStatusCode::BadRequest);
+            throw HttpError(e.what(), HttpStatusCode::BadRequest);
         }
     }
 
@@ -915,7 +917,7 @@ namespace winpx
         catch (const std::exception& e)
         {
             DoTraceMessage(WppWarning, "Invalid response framing: %s", e.what());
-            throw HttpError(HttpStatusCode::BadGateway);
+            throw HttpError(e.what(), HttpStatusCode::BadGateway);
         }
     }
 
