@@ -22,6 +22,7 @@ namespace winpx
 
         std::chrono::milliseconds resolveTimeout = std::chrono::seconds(5);
         std::chrono::milliseconds connectTimeout = std::chrono::seconds(5);
+        std::chrono::milliseconds connectionAttemptDelay = std::chrono::milliseconds(250);
         std::chrono::milliseconds keepAliveTimeout = std::chrono::seconds(30);
         std::chrono::milliseconds serverIdleTimeout = std::chrono::seconds(30);
         std::chrono::milliseconds readTimeout = std::chrono::seconds(120);

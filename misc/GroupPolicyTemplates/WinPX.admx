@@ -260,6 +260,13 @@
         <decimal id="ConnectTimeout" valueName="ConnectTimeout" minValue="1000" maxValue="3600000" />
       </elements>
     </policy>
+    <policy name="ConnectionAttemptDelay" class="Both" displayName="$(string.ConnectionAttemptDelay)" explainText="$(string.ConnectionAttemptDelay_Help)" presentation="$(presentation.ConnectionAttemptDelay)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="ConnectionAttemptDelay" valueName="ConnectionAttemptDelay" minValue="0" maxValue="60000" />
+      </elements>
+    </policy>
     <policy name="KeepAliveTimeout" class="Both" displayName="$(string.KeepAliveTimeout)" explainText="$(string.KeepAliveTimeout_Help)" presentation="$(presentation.KeepAliveTimeout)" key="Software\Policies\Marius Greuel\WinPX">
       <parentCategory ref="WinPX" />
       <supportedOn ref="windows:SUPPORTED_Windows_10_0" />

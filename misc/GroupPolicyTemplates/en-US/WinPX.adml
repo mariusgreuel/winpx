@@ -250,6 +250,14 @@
 
         If you disable this policy or do not configure it, the default timeout duration will be used.
       </string>
+      <string id="ConnectionAttemptDelay">Connection Attempt Delay</string>
+      <string id="ConnectionAttemptDelay_Help">
+        This policy setting allows you to specify the delay duration between connection attempts using the happy eyeballs algorithm.
+
+        If you enable this policy, the WinPX proxy server will use the specified delay duration between connection attempts.
+
+        If you disable this policy or do not configure it, the default delay duration will be used.
+      </string>
       <string id="KeepAliveTimeout">Keep Alive Timeout</string>
       <string id="KeepAliveTimeout_Help">
         This policy setting allows you to specify the timeout duration for keeping the connection alive.

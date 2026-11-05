@@ -8,6 +8,7 @@
 #include "TestHelpers.h"
 #include <common/HttpTransport.h>
 
+#include <asio/ip/v6_only.hpp>
 #include <gtest/gtest.h>
 
 namespace UnitTests
@@ -56,6 +57,15 @@ namespace UnitTests
             m_ioContext.restart();
             m_ioContext.run();
             return future.get();
+        }
+
+        tcp::socket ConnectToLocalhost(uint16_t port)
+        {
+            tcp::socket socket(m_ioContext);
+            Run([&]() -> asio::awaitable<void> {
+                socket = co_await m_transport.ConnectTo("localhost", port);
+            }());
+            return socket;
         }
 
         static void WriteAndShutdown(tcp::socket& socket, std::string_view data)
@@ -145,6 +155,70 @@ namespace UnitTests
             co_await m_transport.ConnectTo("127.0.0.1", port);
         }()),
             std::system_error);
+    }
+
+    TEST_F(HttpTransportTests, ConnectTo_LocalhostConnectsToIPv4Listener)
+    {
+        tcp::acceptor acceptor(m_ioContext, tcp::endpoint(asio::ip::address_v4::loopback(), 0));
+
+        auto socket = ConnectToLocalhost(acceptor.local_endpoint().port());
+
+        EXPECT_TRUE(socket.is_open());
+        EXPECT_EQ(socket.remote_endpoint(), acceptor.local_endpoint());
+    }
+
+    TEST_F(HttpTransportTests, ConnectTo_LocalhostConnectsToIPv6Listener)
+    {
+        tcp::acceptor acceptor(m_ioContext);
+        asio::error_code ec;
+        acceptor.open(tcp::v6(), ec);
+        ASSERT_FALSE(ec) << "IPv6 is unavailable: " << ec.message();
+
+        acceptor.set_option(asio::ip::v6_only(true));
+        acceptor.bind(tcp::endpoint(asio::ip::address_v6::loopback(), 0));
+        acceptor.listen();
+
+        auto socket = ConnectToLocalhost(acceptor.local_endpoint().port());
+
+        EXPECT_TRUE(socket.is_open());
+        EXPECT_EQ(socket.remote_endpoint(), acceptor.local_endpoint());
+    }
+
+    TEST_F(HttpTransportTests, ConnectTo_LocalhostReturnsOneOfTwoListeners)
+    {
+        tcp::acceptor ipv6Acceptor(m_ioContext);
+        asio::error_code ec;
+        ipv6Acceptor.open(tcp::v6(), ec);
+        ASSERT_FALSE(ec) << "IPv6 is unavailable: " << ec.message();
+
+        ipv6Acceptor.set_option(asio::ip::v6_only(true));
+        ipv6Acceptor.bind(tcp::endpoint(asio::ip::address_v6::loopback(), 0));
+        ipv6Acceptor.listen();
+        uint16_t port = ipv6Acceptor.local_endpoint().port();
+        tcp::acceptor ipv4Acceptor(m_ioContext, tcp::endpoint(asio::ip::address_v4::loopback(), port));
+
+        auto socket = ConnectToLocalhost(port);
+
+        EXPECT_TRUE(socket.is_open());
+        EXPECT_TRUE(socket.remote_endpoint() == ipv4Acceptor.local_endpoint() ||
+            socket.remote_endpoint() == ipv6Acceptor.local_endpoint());
+    }
+
+    TEST_F(HttpTransportTests, ConnectTo_LocalhostThrowsWhenBothFamiliesRefuse)
+    {
+        tcp::acceptor ipv6Acceptor(m_ioContext);
+        asio::error_code ec;
+        ipv6Acceptor.open(tcp::v6(), ec);
+        ASSERT_FALSE(ec) << "IPv6 is unavailable: " << ec.message();
+
+        ipv6Acceptor.set_option(asio::ip::v6_only(true));
+        ipv6Acceptor.bind(tcp::endpoint(asio::ip::address_v6::loopback(), 0));
+        uint16_t port = ipv6Acceptor.local_endpoint().port();
+        tcp::acceptor ipv4Acceptor(m_ioContext);
+        ipv4Acceptor.open(tcp::v4());
+        ipv4Acceptor.bind(tcp::endpoint(asio::ip::address_v4::loopback(), port));
+
+        EXPECT_THROW(ConnectToLocalhost(port), std::system_error);
     }
 
     TEST_F(HttpTransportTests, DrainAndClose_DrainsPendingDataAndClosesSocket)

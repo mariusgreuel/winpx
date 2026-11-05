@@ -26,17 +26,73 @@ namespace winpx
         DoTraceMessage(WppVerbose, "%!FUNC!: host=%!sv!, port=%u", host, port);
 
         asio::any_io_executor executor = co_await asio::this_coro::executor;
-        asio::ip::tcp::socket socket(executor);
         asio::ip::tcp::resolver resolver(executor);
         asio::ip::tcp::resolver::results_type results = co_await resolver.async_resolve(
             host,
             std::to_string(port),
             asio::cancel_after(m_httpConfiguration.resolveTimeout, asio::use_awaitable));
-        co_await asio::async_connect(
-            socket,
-            results,
+
+        std::vector<asio::ip::tcp::endpoint> endpoints;
+        for (const auto& result : results)
+        {
+            endpoints.push_back(result.endpoint());
+        }
+
+        if (endpoints.empty())
+        {
+            throw asio::system_error(asio::error::host_not_found);
+        }
+
+        SortEndpointsWithAlternatingAddressFamily(endpoints);
+
+        auto delay = AreAllLocalhost(endpoints) ? std::chrono::milliseconds(0) : m_httpConfiguration.connectionAttemptDelay;
+
+        asio::ip::tcp::socket socket(executor);
+        co_await asio::co_spawn(
+            executor,
+            ConnectTo(socket, endpoints, delay),
             asio::cancel_after(m_httpConfiguration.connectTimeout, asio::use_awaitable));
         co_return socket;
+    }
+
+    asio::awaitable<void> HttpTransport::ConnectTo(asio::ip::tcp::socket& result, std::span<const asio::ip::tcp::endpoint> endpoints, std::chrono::milliseconds delay)
+    {
+        asio::any_io_executor executor = co_await asio::this_coro::executor;
+        asio::steady_timer nextAttempt(executor, delay);
+
+        auto connect = [&]() -> asio::awaitable<void> {
+            asio::error_code ec;
+            asio::ip::tcp::socket socket(executor);
+            co_await socket.async_connect(endpoints.front(), asio::redirect_error(asio::use_awaitable, ec));
+            if (ec)
+            {
+                nextAttempt.expires_after(std::chrono::milliseconds::zero());
+                throw asio::system_error(ec);
+            }
+
+            result = std::move(socket);
+        };
+
+        auto connectNext = [&]() -> asio::awaitable<void> {
+            co_await nextAttempt.async_wait(asio::use_awaitable);
+            co_await ConnectTo(result, endpoints.subspan(1), delay);
+        };
+
+        try
+        {
+            if (endpoints.size() == 1)
+            {
+                co_await connect();
+            }
+            else
+            {
+                co_await (connect() || connectNext());
+            }
+        }
+        catch (const asio::multiple_exceptions& e)
+        {
+            std::rethrow_exception(e.first_exception());
+        }
     }
 
     asio::awaitable<void> HttpTransport::DrainAndClose(asio::ip::tcp::socket& client) const
@@ -527,6 +583,29 @@ namespace winpx
         if (replayBuffer != nullptr)
         {
             replayBuffer->Append(data, m_httpConfiguration.maxReplayBufferSize);
+        }
+    }
+
+    bool HttpTransport::AreAllLocalhost(const std::vector<asio::ip::tcp::endpoint>& endpoints)
+    {
+        return std::all_of(endpoints.begin(), endpoints.end(), [](const auto& endpoint) {
+            return endpoint.address().is_loopback();
+        });
+    }
+
+    void HttpTransport::SortEndpointsWithAlternatingAddressFamily(std::vector<asio::ip::tcp::endpoint>& endpoints)
+    {
+        for (auto next = endpoints.begin() + 1; next != endpoints.end(); ++next)
+        {
+            auto alternate = std::find_if(next, endpoints.end(), [&](const auto& endpoint) {
+                return endpoint.address().is_v6() != (next - 1)->address().is_v6();
+            });
+            if (alternate == endpoints.end())
+            {
+                break;
+            }
+
+            std::rotate(next, alternate, alternate + 1);
         }
     }
 }

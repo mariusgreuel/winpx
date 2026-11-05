@@ -12,6 +12,7 @@
 #include <asio/ip/tcp.hpp>
 
 #include <cstdint>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -53,6 +54,10 @@ namespace winpx
 
     private:
         void AppendToReplayBuffer(HttpReplayBuffer* replayBuffer, std::string_view data) const;
+
+        static asio::awaitable<void> ConnectTo(asio::ip::tcp::socket& result, std::span<const asio::ip::tcp::endpoint> endpoints, std::chrono::milliseconds delay);
+        static bool AreAllLocalhost(const std::vector<asio::ip::tcp::endpoint>& endpoints);
+        static void SortEndpointsWithAlternatingAddressFamily(std::vector<asio::ip::tcp::endpoint>& endpoints);
 
     private:
         const HttpConfiguration& m_httpConfiguration;
