@@ -30,9 +30,9 @@
 
   <Applications>
     <Application
-      Id="WinPX"
-      Executable="$targetnametoken$.exe"
-      EntryPoint="$targetentrypoint$"
+      Id="GuiWinPX"
+      Executable="gui\winpx.exe"
+      EntryPoint="Windows.FullTrustApplication"
       uap18:TrustLevel="mediumIL"
       uap18:RuntimeBehavior="win32App">
       <uap:VisualElements
@@ -56,6 +56,30 @@
             Enabled="true"
             DisplayName="WinPX Proxy Server" />
         </desktop:Extension>
+      </Extensions>
+    </Application>
+    <Application
+      Id="CliWinPX"
+      Executable="console\winpxc.exe"
+      EntryPoint="Windows.FullTrustApplication"
+      uap18:TrustLevel="mediumIL"
+      uap18:RuntimeBehavior="win32App">
+      <uap:VisualElements
+        DisplayName="WinPX Proxy Server (CLI)"
+        Description="WinPX is a forwarding HTTP proxy server for Windows designed to help legacy applications connect to enterprise proxy servers."
+        AppListEntry="none"
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Images\SplashScreen.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap5:Extension Category="windows.appExecutionAlias">
+          <uap5:AppExecutionAlias>
+            <uap5:ExecutionAlias Alias="winpxc.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
       </Extensions>
     </Application>
   </Applications>
