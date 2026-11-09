@@ -175,7 +175,7 @@ namespace winpx
         }
 
         LOG_INFO("{} Closing connection", context);
-        co_await DrainAndClose(client);
+        co_await DrainAndClose(client, context.clientBuffer);
 
         m_proxyStatistics.activeConnections -= 1;
     }
@@ -292,7 +292,7 @@ namespace winpx
             m_proxyStatistics.totalClientBytesSent += co_await WriteData(context.client, connectionEstablished.ToString());
 
             LOG_INFO("{} Creating tunnel", context);
-            auto result = co_await Tunnel(context.client, server, context.clientBuffer, {});
+            auto result = co_await Tunnel(context.client, server, context.clientBuffer, context.serverBuffer);
             m_proxyStatistics.totalClientBytesSent += result.clientBytesSent;
             m_proxyStatistics.totalClientBytesReceived += result.clientBytesReceived;
             m_proxyStatistics.totalUpstreamBytesSent += result.serverBytesSent;

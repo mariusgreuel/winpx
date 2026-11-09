@@ -114,23 +114,23 @@ namespace winpx
         }
     }
 
-    asio::awaitable<void> HttpTransport::DrainAndClose(asio::ip::tcp::socket& client) const
+    asio::awaitable<void> HttpTransport::DrainAndClose(asio::ip::tcp::socket& socket, std::string& buffer) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u] Closing connection...",
-            client.local_endpoint().port(),
-            client.remote_endpoint().port());
+            socket.local_endpoint().port(),
+            socket.remote_endpoint().port());
 
         asio::error_code ec;
-        client.shutdown(asio::socket_base::shutdown_send, ec);
+        socket.shutdown(asio::socket_base::shutdown_send, ec);
         if (!ec)
         {
-            std::string discard(0x4000, '\0');
+            buffer.resize(maxBufferSize);
 
             size_t totalBytes = 0;
             while (totalBytes < m_httpConfiguration.maxDrainSize)
             {
-                size_t bytesRead = co_await client.async_read_some(
-                    asio::buffer(discard),
+                size_t bytesRead = co_await socket.async_read_some(
+                    asio::buffer(buffer),
                     asio::redirect_error(asio::cancel_after(m_httpConfiguration.drainTimeout, asio::use_awaitable), ec));
                 if (ec)
                     break;
@@ -139,7 +139,7 @@ namespace winpx
             }
         }
 
-        client.close(ec);
+        socket.close(ec);
     }
 
     size_t HttpTransport::ParseChunkSize(std::string_view line) const
@@ -179,45 +179,51 @@ namespace winpx
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u], length=%Iu", socket.local_endpoint().port(), socket.remote_endpoint().port(), length);
 
-
         if (length == 0)
         {
             co_return std::string();
         }
 
         std::string result;
-
-        auto dynamicBuffer = asio::dynamic_buffer(buffer, maxBufferSize);
+        result.reserve(length != untilEof ? length : maxBufferSize);
 
         size_t bytesRemaining = length;
+
+        if (!buffer.empty())
+        {
+            size_t bytesToMove = std::min(buffer.size(), bytesRemaining);
+            result.append(buffer.data(), bytesToMove);
+            buffer.erase(0, bytesToMove);
+            bytesRemaining -= bytesToMove;
+        }
+
+        if (bytesRemaining == 0)
+        {
+            co_return result;
+        }
+
         while (bytesRemaining > 0)
         {
             asio::error_code ec;
-
-            if (dynamicBuffer.size() == 0)
+            size_t bytesInResult = result.size();
+            size_t bytesToRead = std::min(bytesRemaining, maxBufferSize);
+            result.resize(bytesInResult + bytesToRead);
+            size_t bytesRead = co_await socket.async_read_some(
+                asio::buffer(result.data() + bytesInResult, bytesToRead),
+                asio::redirect_error(asio::cancel_after(m_httpConfiguration.readTimeout, asio::use_awaitable), ec));
+            result.resize(bytesInResult + bytesRead);
+            if (ec)
             {
-                size_t bytesToRead = std::min(bytesRemaining, maxBufferSize);
-                co_await asio::async_read(
-                    socket,
-                    dynamicBuffer,
-                    asio::transfer_exactly(bytesToRead),
-                    asio::redirect_error(asio::cancel_after(m_httpConfiguration.readTimeout, asio::use_awaitable), ec));
-                if (ec && (ec != asio::error::eof || length != untilEof))
+                if (ec == asio::error::eof && length == untilEof)
                 {
-                    DoTraceMessage(WppWarning, "Failed to read data: %!str!", ec.message());
-                    throw asio::system_error(ec);
+                    break;
                 }
+
+                DoTraceMessage(WppWarning, "Failed to read data: %!str!", ec.message());
+                throw asio::system_error(ec);
             }
 
-            size_t bytesToCopy = std::min(dynamicBuffer.size(), bytesRemaining);
-            result += buffer.substr(0, bytesToCopy);
-            dynamicBuffer.consume(bytesToCopy);
-            bytesRemaining -= bytesToCopy;
-
-            if (ec == asio::error::eof)
-            {
-                break;
-            }
+            bytesRemaining -= bytesRead;
         }
 
         co_return result;
@@ -338,47 +344,62 @@ namespace winpx
             length);
 
         if (length == 0)
+        {
             co_return 0;
-
-        auto dynamicBuffer = asio::dynamic_buffer(buffer, maxBufferSize);
+        }
 
         size_t totalBytes = 0;
         size_t bytesRemaining = length;
+
+        if (!buffer.empty())
+        {
+            size_t bytesToWrite = std::min(buffer.size(), bytesRemaining);
+            size_t bytesWritten = co_await asio::async_write(
+                destination,
+                asio::buffer(buffer.data(), bytesToWrite),
+                asio::cancel_after(m_httpConfiguration.writeTimeout, asio::use_awaitable));
+            AppendToReplayBuffer(replayBuffer, std::string_view(buffer.data(), bytesWritten));
+            buffer.erase(0, bytesWritten);
+            bytesRemaining -= bytesWritten;
+            totalBytes += bytesWritten;
+        }
+
+        if (bytesRemaining == 0)
+        {
+            co_return totalBytes;
+        }
+
+        buffer.resize(maxBufferSize);
+
         while (bytesRemaining > 0)
         {
             asio::error_code ec;
-
-            if (dynamicBuffer.size() == 0)
+            size_t bytesToRead = std::min(bytesRemaining, buffer.size());
+            size_t bytesRead = co_await source.async_read_some(
+                asio::buffer(buffer.data(), bytesToRead),
+                asio::redirect_error(asio::cancel_after(m_httpConfiguration.readTimeout, asio::use_awaitable), ec));
+            if (ec)
             {
-                size_t bytesToRead = std::min(bytesRemaining, maxBufferSize);
-                co_await asio::async_read(
-                    source,
-                    dynamicBuffer,
-                    asio::transfer_exactly(bytesToRead),
-                    asio::redirect_error(asio::cancel_after(m_httpConfiguration.readTimeout, asio::use_awaitable), ec));
-                if (ec && (ec != asio::error::eof || length != untilEof))
+                if (ec == asio::error::eof && length == untilEof)
                 {
-                    DoTraceMessage(WppWarning, "Failed to read data: %!str!", ec.message());
-                    throw asio::system_error(ec);
+                    break;
                 }
+
+                DoTraceMessage(WppWarning, "Failed to read data: %!str!", ec.message());
+                throw asio::system_error(ec);
             }
 
-            size_t bytesToWrite = std::min(dynamicBuffer.size(), bytesRemaining);
             size_t bytesWritten = co_await asio::async_write(
                 destination,
-                dynamicBuffer.data(0, bytesToWrite),
+                asio::buffer(buffer.data(), bytesRead),
                 asio::cancel_after(m_httpConfiguration.writeTimeout, asio::use_awaitable));
-            AppendToReplayBuffer(replayBuffer, std::string_view(buffer).substr(0, bytesWritten));
+            AppendToReplayBuffer(replayBuffer, std::string_view(buffer.data(), bytesWritten));
 
-            dynamicBuffer.consume(bytesWritten);
             bytesRemaining -= bytesWritten;
             totalBytes += bytesWritten;
-
-            if (ec == asio::error::eof)
-            {
-                break;
-            }
         }
+
+        buffer.clear();
 
         co_return totalBytes;
     }
@@ -456,13 +477,13 @@ namespace winpx
         co_return totalBytes;
     }
 
-    asio::awaitable<size_t> HttpTransport::StreamRequestBody(asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, std::string& buffer, const HttpMessageFraming& framing, HttpReplayBuffer* replayBuffer) const
+    asio::awaitable<size_t> HttpTransport::StreamRequestBody(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, const HttpMessageFraming& framing, HttpReplayBuffer* replayBuffer) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u -> %u/%u], captureForReplay=%d",
-            client.local_endpoint().port(),
-            client.remote_endpoint().port(),
-            server.local_endpoint().port(),
-            server.remote_endpoint().port(),
+            source.local_endpoint().port(),
+            source.remote_endpoint().port(),
+            destination.local_endpoint().port(),
+            destination.remote_endpoint().port(),
             replayBuffer != nullptr);
 
         try
@@ -471,12 +492,12 @@ namespace winpx
 
             if (framing.chunked)
             {
-                totalBytes = co_await StreamChunkedData(client, server, buffer, replayBuffer);
+                totalBytes = co_await StreamChunkedData(source, destination, buffer, replayBuffer);
             }
             else
             {
                 size_t contentLength = framing.contentLength.value_or(0);
-                totalBytes = co_await StreamData(client, server, buffer, contentLength, replayBuffer);
+                totalBytes = co_await StreamData(source, destination, buffer, contentLength, replayBuffer);
                 if (totalBytes != contentLength)
                 {
                     throw std::runtime_error("Incomplete body");
@@ -492,13 +513,13 @@ namespace winpx
         }
     }
 
-    asio::awaitable<size_t> HttpTransport::StreamResponseBody(asio::ip::tcp::socket& server, asio::ip::tcp::socket& client, std::string& buffer, const HttpMessageFraming& framing) const
+    asio::awaitable<size_t> HttpTransport::StreamResponseBody(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, const HttpMessageFraming& framing) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u -> %u/%u]",
-            server.local_endpoint().port(),
-            server.remote_endpoint().port(),
-            client.local_endpoint().port(),
-            client.remote_endpoint().port());
+            source.local_endpoint().port(),
+            source.remote_endpoint().port(),
+            destination.local_endpoint().port(),
+            destination.remote_endpoint().port());
 
         try
         {
@@ -506,15 +527,15 @@ namespace winpx
 
             if (framing.chunked)
             {
-                totalBytes = co_await StreamChunkedData(server, client, buffer);
+                totalBytes = co_await StreamChunkedData(source, destination, buffer);
             }
             else if (framing.contentLength)
             {
-                totalBytes = co_await StreamData(server, client, buffer, *framing.contentLength);
+                totalBytes = co_await StreamData(source, destination, buffer, *framing.contentLength);
             }
             else
             {
-                totalBytes = co_await StreamData(server, client, buffer, untilEof);
+                totalBytes = co_await StreamData(source, destination, buffer, untilEof);
             }
 
             co_return totalBytes;
@@ -526,7 +547,7 @@ namespace winpx
         }
     }
 
-    asio::awaitable<HttpTransport::TunnelResult> HttpTransport::Tunnel(asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, std::string_view clientLeftover, std::string_view serverLeftover)
+    asio::awaitable<HttpTransport::TunnelResult> HttpTransport::Tunnel(asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, std::string& clientBuffer, std::string& serverBuffer)
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u <-> %u/%u]",
             client.local_endpoint().port(),
@@ -534,19 +555,9 @@ namespace winpx
             server.local_endpoint().port(),
             server.remote_endpoint().port());
 
+        auto [bytesClientToServer, bytesServerToClient] = co_await (RelayDataOneWay(client, server, clientBuffer) && RelayDataOneWay(server, client, serverBuffer));
+
         TunnelResult result;
-
-        if (!clientLeftover.empty())
-        {
-            result.serverBytesSent += co_await WriteData(server, clientLeftover);
-        }
-
-        if (!serverLeftover.empty())
-        {
-            result.clientBytesSent += co_await WriteData(client, serverLeftover);
-        }
-
-        auto [bytesClientToServer, bytesServerToClient] = co_await (RelayDataOneWay(client, server) && RelayDataOneWay(server, client));
         result.clientBytesSent += bytesServerToClient;
         result.clientBytesReceived += bytesClientToServer;
         result.serverBytesSent += bytesClientToServer;
@@ -554,7 +565,7 @@ namespace winpx
         co_return result;
     }
 
-    asio::awaitable<size_t> HttpTransport::RelayDataOneWay(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination) const
+    asio::awaitable<size_t> HttpTransport::RelayDataOneWay(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u -> %u/%u]",
             source.local_endpoint().port(),
@@ -562,9 +573,15 @@ namespace winpx
             destination.local_endpoint().port(),
             destination.remote_endpoint().port());
 
-        std::vector<char> buffer(maxBufferSize);
-
         size_t totalBytes = 0;
+
+        if (!buffer.empty())
+        {
+            totalBytes += co_await WriteData(destination, buffer);
+            buffer.clear();
+        }
+
+        buffer.resize(maxBufferSize);
 
         try
         {
@@ -590,6 +607,8 @@ namespace winpx
                 DoTraceMessage(WppWarning, "Failed to relay data: %s", e.what());
             }
         }
+
+        buffer.clear();
 
         asio::error_code ec;
         destination.shutdown(asio::socket_base::shutdown_send, ec);

@@ -226,7 +226,8 @@ namespace UnitTests
         auto pair = CreateSocketPair();
 
         WriteAndShutdown(pair.remote, "pending request data");
-        Run(m_transport.DrainAndClose(pair.local));
+        std::string buffer;
+        Run(m_transport.DrainAndClose(pair.local, buffer));
         EXPECT_FALSE(pair.local.is_open());
         EXPECT_EQ(ReadAll(pair.remote), "");
     }
@@ -236,7 +237,8 @@ namespace UnitTests
         auto pair = CreateSocketPair();
 
         m_configuration.drainTimeout = std::chrono::milliseconds(100);
-        Run(m_transport.DrainAndClose(pair.local));
+        std::string buffer;
+        Run(m_transport.DrainAndClose(pair.local, buffer));
         EXPECT_FALSE(pair.local.is_open());
     }
 
@@ -531,7 +533,8 @@ namespace UnitTests
 
         WriteAndShutdown(source.remote, "relayed data");
 
-        size_t bytes = Run(m_transport.RelayDataOneWay(source.local, destination.local));
+        std::string buffer;
+        size_t bytes = Run(m_transport.RelayDataOneWay(source.local, destination.local, buffer));
         EXPECT_EQ(bytes, 12u);
         EXPECT_EQ(ReadAll(destination.remote), "relayed data");
     }
@@ -543,13 +546,15 @@ namespace UnitTests
         WriteAndShutdown(client.remote, "hello");
         WriteAndShutdown(server.remote, "world!");
 
-        auto result = Run(m_transport.Tunnel(client.local, server.local, "Client:"sv, "Server:"sv));
+        std::string clientBuffer("Client:");
+        std::string serverBuffer("Server:");
+        auto result = Run(m_transport.Tunnel(client.local, server.local, clientBuffer, serverBuffer));
         EXPECT_EQ(ReadAll(server.remote), "Client:hello");
         EXPECT_EQ(ReadAll(client.remote), "Server:world!");
         EXPECT_EQ(result.serverBytesSent, 12u);
         EXPECT_EQ(result.clientBytesSent, 13u);
-        EXPECT_EQ(result.clientBytesReceived, 5u);
-        EXPECT_EQ(result.serverBytesReceived, 6u);
+        EXPECT_EQ(result.clientBytesReceived, 12u);
+        EXPECT_EQ(result.serverBytesReceived, 13u);
     }
 
     TEST_F(HttpTransportTests, Tunnel_WithoutLeftovers)
@@ -559,7 +564,9 @@ namespace UnitTests
         WriteAndShutdown(client.remote, "");
         WriteAndShutdown(server.remote, "");
 
-        auto result = Run(m_transport.Tunnel(client.local, server.local, ""sv, ""sv));
+        std::string clientBuffer;
+        std::string serverBuffer;
+        auto result = Run(m_transport.Tunnel(client.local, server.local, clientBuffer, serverBuffer));
         EXPECT_EQ(result.clientBytesSent, 0u);
         EXPECT_EQ(result.clientBytesReceived, 0u);
         EXPECT_EQ(result.serverBytesSent, 0u);

@@ -36,7 +36,7 @@ namespace winpx
         void SetTcpNoDelay(asio::ip::tcp::socket& socket) const;
 
         asio::awaitable<asio::ip::tcp::socket> ConnectTo(std::string_view host, uint16_t port) const;
-        asio::awaitable<void> DrainAndClose(asio::ip::tcp::socket& client) const;
+        asio::awaitable<void> DrainAndClose(asio::ip::tcp::socket& socket, std::string& buffer) const;
 
         size_t ParseChunkSize(std::string_view line) const;
 
@@ -48,11 +48,11 @@ namespace winpx
 
         asio::awaitable<size_t> StreamData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, size_t length, HttpReplayBuffer* replayBuffer = nullptr) const;
         asio::awaitable<size_t> StreamChunkedData(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, HttpReplayBuffer* replayBuffer = nullptr) const;
-        asio::awaitable<size_t> StreamRequestBody(asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, std::string& buffer, const HttpMessageFraming& framing, HttpReplayBuffer* replayBuffer = nullptr) const;
-        asio::awaitable<size_t> StreamResponseBody(asio::ip::tcp::socket& server, asio::ip::tcp::socket& client, std::string& buffer, const HttpMessageFraming& framing) const;
+        asio::awaitable<size_t> StreamRequestBody(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, const HttpMessageFraming& framing, HttpReplayBuffer* replayBuffer = nullptr) const;
+        asio::awaitable<size_t> StreamResponseBody(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer, const HttpMessageFraming& framing) const;
 
-        asio::awaitable<TunnelResult> Tunnel(asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, std::string_view clientLeftover, std::string_view serverLeftover);
-        asio::awaitable<size_t> RelayDataOneWay(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination) const;
+        asio::awaitable<TunnelResult> Tunnel(asio::ip::tcp::socket& client, asio::ip::tcp::socket& server, std::string& clientBuffer, std::string& serverBuffer);
+        asio::awaitable<size_t> RelayDataOneWay(asio::ip::tcp::socket& source, asio::ip::tcp::socket& destination, std::string& buffer) const;
 
     private:
         void AppendToReplayBuffer(HttpReplayBuffer* replayBuffer, std::string_view data) const;
