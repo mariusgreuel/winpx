@@ -45,8 +45,9 @@ namespace winpx
 
         void OpenSession();
         void CloseSession();
-        void LoadSystemProxyConfiguration();
+        std::shared_ptr<SystemProxyConfiguration> LoadSystemProxyConfiguration();
         void DumpEffectiveProxyConfiguration();
+        static bool IsEqual(std::shared_ptr<SystemProxyConfiguration> old, const std::shared_ptr<SystemProxyConfiguration> current);
 
     private:
         const ProxyConfiguration& m_proxyConfiguration;

@@ -98,8 +98,16 @@ namespace winpx
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
 
-        LoadSystemProxyConfiguration();
-        DumpEffectiveProxyConfiguration();
+        auto systemProxyConfiguration = LoadSystemProxyConfiguration();
+        if (!IsEqual(systemProxyConfiguration, m_systemProxyConfiguration.load()))
+        {
+            m_systemProxyConfiguration.store(systemProxyConfiguration);
+            DumpEffectiveProxyConfiguration();
+        }
+        else
+        {
+            DoTraceMessage(WppVerbose, "System proxy configuration unchanged, skipping update.");
+        }
     }
 
     ProxyResolverResult ProxyResolver::ResolveProxy(const std::string& url) const
@@ -346,7 +354,7 @@ namespace winpx
         }
     }
 
-    void ProxyResolver::LoadSystemProxyConfiguration()
+    std::shared_ptr<SystemProxyConfiguration> ProxyResolver::LoadSystemProxyConfiguration()
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
 
@@ -402,36 +410,46 @@ namespace winpx
             GlobalFree(config.lpszProxyBypass);
         }
 
-        m_systemProxyConfiguration.store(systemProxyConfiguration);
+        return systemProxyConfiguration;
     }
 
     void ProxyResolver::DumpEffectiveProxyConfiguration()
     {
+        DoTraceMessage(WppVerbose, "%!FUNC!");
+
         auto systemProxyConfiguration = m_systemProxyConfiguration.load();
 
         switch (m_proxyConfiguration.proxyMode)
         {
         case ProxyMode::Default:
         case ProxyMode::System:
-            if (!systemProxyConfiguration->autoConfigUrl.empty())
+            if (systemProxyConfiguration)
             {
-                DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using PAC URL '%!str!'.", systemProxyConfiguration->autoConfigUrl);
-                LOG_INFO("Using proxy auto-configuration (PAC) URL: {}", systemProxyConfiguration->autoConfigUrl);
-            }
-            else if (!systemProxyConfiguration->proxy.empty())
-            {
-                DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using proxy URL '%!str!'.", systemProxyConfiguration->proxy);
-                LOG_INFO("Using manual proxy configuration: {}", systemProxyConfiguration->proxy);
-            }
-            else if (systemProxyConfiguration->autoDetect)
-            {
-                DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using WPAD.");
-                LOG_INFO("Using proxy auto-detect (WPAD)");
+                if (!systemProxyConfiguration->autoConfigUrl.empty())
+                {
+                    DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using PAC URL '%!str!'.", systemProxyConfiguration->autoConfigUrl);
+                    LOG_INFO("Using proxy auto-configuration (PAC) URL: {}", systemProxyConfiguration->autoConfigUrl);
+                }
+                else if (!systemProxyConfiguration->proxy.empty())
+                {
+                    DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using proxy URL '%!str!'.", systemProxyConfiguration->proxy);
+                    LOG_INFO("Using manual proxy configuration: {}", systemProxyConfiguration->proxy);
+                }
+                else if (systemProxyConfiguration->autoDetect)
+                {
+                    DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using WPAD.");
+                    LOG_INFO("Using proxy auto-detect (WPAD)");
+                }
+                else
+                {
+                    DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using 'DIRECT'.");
+                    LOG_INFO("Using direct connection (no proxy)");
+                }
             }
             else
             {
-                DoTraceMessage(WppVerbose, "Proxy mode set to 'System', using 'DIRECT'.");
-                LOG_INFO("Using direct connection (no proxy)");
+                DoTraceMessage(WppVerbose, "No system proxy configuration available.");
+                LOG_INFO("No system proxy configuration available.");
             }
             break;
         case ProxyMode::Direct:
@@ -454,6 +472,25 @@ namespace winpx
             break;
         default:
             throw std::invalid_argument("Invalid proxy mode.");
+        }
+    }
+
+    bool ProxyResolver::IsEqual(std::shared_ptr<SystemProxyConfiguration> old, const std::shared_ptr<SystemProxyConfiguration> current)
+    {
+        if (old == nullptr && current == nullptr)
+        {
+            return true;
+        }
+        else if (old == nullptr || current == nullptr)
+        {
+            return false;
+        }
+        else
+        {
+            return old->autoDetect == current->autoDetect &&
+                   old->autoConfigUrl == current->autoConfigUrl &&
+                   old->proxy == current->proxy &&
+                   old->proxyBypass == current->proxyBypass;
         }
     }
 }
