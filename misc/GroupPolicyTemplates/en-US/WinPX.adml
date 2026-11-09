@@ -186,6 +186,14 @@
 
         If you disable this policy or do not configure it, the default thread pool size will be used.
       </string>
+      <string id="SetTcpNoDelay">Set TCP No Delay</string>
+      <string id="SetTcpNoDelay_Help">
+        This policy setting allows you to specify whether to enable TCP_NODELAY.
+
+        If you enable this policy, the WinPX proxy server will use the specified TCP_NODELAY setting.
+
+        If you disable this policy or do not configure it, TCP_NODELAY will be set by default.
+      </string>
       <string id="MaxHeadSize">Max Head Size</string>
       <string id="MaxHeadSize_Help">
         This policy setting allows you to specify the maximum HTTP head size.
@@ -252,11 +260,11 @@
       </string>
       <string id="ConnectionAttemptDelay">Connection Attempt Delay</string>
       <string id="ConnectionAttemptDelay_Help">
-        This policy setting allows you to specify the delay duration between connection attempts using the happy eyeballs algorithm.
+        This policy setting allows you to specify the delay between connection attempts using the happy eyeballs algorithm.
 
-        If you enable this policy, the WinPX proxy server will use the specified delay duration between connection attempts.
+        If you enable this policy, the WinPX proxy server will use the specified delay between connection attempts.
 
-        If you disable this policy or do not configure it, the default delay duration will be used.
+        If you disable this policy or do not configure it, the default delay will be used.
       </string>
       <string id="KeepAliveTimeout">Keep Alive Timeout</string>
       <string id="KeepAliveTimeout_Help">
@@ -425,6 +433,10 @@
       <presentation id="ConnectTimeout">
         <text>Enter the timeout duration for establishing a HTTP connection in milliseconds.</text>
         <decimalTextBox refId="ConnectTimeout" defaultValue="5000" spin="true">Connect Timeout:</decimalTextBox>
+      </presentation>
+      <presentation id="ConnectionAttemptDelay">
+        <text>Enter the timeout duration for the delay between connection attempts.</text>
+        <decimalTextBox refId="ConnectionAttemptDelay" defaultValue="250" spin="true">Connection Attempt Delay:</decimalTextBox>
       </presentation>
       <presentation id="KeepAliveTimeout">
         <text>Enter the timeout duration for keeping a HTTP connection alive in milliseconds.</text>

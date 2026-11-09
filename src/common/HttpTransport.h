@@ -33,6 +33,8 @@ namespace winpx
 
         HttpTransport(const HttpConfiguration& httpConfiguration);
 
+        void SetTcpNoDelay(asio::ip::tcp::socket& socket) const;
+
         asio::awaitable<asio::ip::tcp::socket> ConnectTo(std::string_view host, uint16_t port) const;
         asio::awaitable<void> DrainAndClose(asio::ip::tcp::socket& client) const;
 

@@ -136,6 +136,7 @@ namespace winpx
 
         threadPoolSize = GetPolicyOrRegistryValue("ThreadPoolSize"sv, -1);
 
+        httpConfiguration.setTcpNoDelay = GetPolicyOrRegistryValue("SetTcpNoDelay"sv, true);
         httpConfiguration.maxHeadSize = GetPolicyOrRegistryValue("MaxHeadSize"sv, 1 * HttpConfiguration::MB);
         httpConfiguration.maxChunkSize = GetPolicyOrRegistryValue("MaxChunkSize"sv, 64 * HttpConfiguration::MB);
         httpConfiguration.maxBodySizeBeforeProbing = GetPolicyOrRegistryValue("MaxBodySizeBeforeProbing"sv, 1 * HttpConfiguration::MB);

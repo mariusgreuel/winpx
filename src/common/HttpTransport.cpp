@@ -21,6 +21,24 @@ namespace winpx
     {
     }
 
+    void HttpTransport::SetTcpNoDelay(asio::ip::tcp::socket& socket) const
+    {
+        DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u], setTcpNoDelay=%!bool!",
+            socket.local_endpoint().port(),
+            socket.remote_endpoint().port(),
+            m_httpConfiguration.setTcpNoDelay);
+
+        if (m_httpConfiguration.setTcpNoDelay)
+        {
+            asio::error_code ec;
+            socket.set_option(asio::ip::tcp::no_delay(true), ec);
+            if (ec)
+            {
+                DoTraceMessage(WppWarning, "Failed to set TCP_NODELAY: %!str!", ec.message());
+            }
+        }
+    }
+
     asio::awaitable<asio::ip::tcp::socket> HttpTransport::ConnectTo(std::string_view host, uint16_t port) const
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: host=%!sv!, port=%u", host, port);
@@ -52,6 +70,7 @@ namespace winpx
             executor,
             ConnectTo(socket, endpoints, delay),
             asio::cancel_after(m_httpConfiguration.connectTimeout, asio::use_awaitable));
+        SetTcpNoDelay(socket);
         co_return socket;
     }
 

@@ -13,6 +13,8 @@ namespace winpx
     public:
         static constexpr size_t MB = 0x100000;
 
+        bool setTcpNoDelay = true;
+
         size_t maxHeadSize = 1 * MB;
         size_t maxChunkSize = 64 * MB;
         size_t maxBodySizeBeforeProbing = 1 * MB;

@@ -204,6 +204,16 @@
         <decimal id="ThreadPoolSize" valueName="ThreadPoolSize" minValue="0" maxValue="256" />
       </elements>
     </policy>
+    <policy name="SetTcpNoDelay" class="Both" displayName="$(string.SetTcpNoDelay)" explainText="$(string.SetTcpNoDelay_Help)" key="Software\Policies\Marius Greuel\WinPX" valueName="SetTcpNoDelay">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+    </policy>
     <policy name="MaxHeadSize" class="Both" displayName="$(string.MaxHeadSize)" explainText="$(string.MaxHeadSize_Help)" presentation="$(presentation.MaxHeadSize)" key="Software\Policies\Marius Greuel\WinPX">
       <parentCategory ref="WinPX" />
       <supportedOn ref="windows:SUPPORTED_Windows_10_0" />

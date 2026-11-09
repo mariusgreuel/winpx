@@ -85,6 +85,8 @@ namespace winpx
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u]", client.local_endpoint().port(), client.remote_endpoint().port());
 
+        SetTcpNoDelay(client);
+
         m_proxyStatistics.activeConnections += 1;
         m_proxyStatistics.totalConnections += 1;
 
