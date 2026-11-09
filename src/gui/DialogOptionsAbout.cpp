@@ -11,6 +11,7 @@
 #include "OnlineHelp.h"
 #include <common/Resources.h>
 #include <common/Version.h>
+#include <win32/Environment.h>
 #include <win32/Unicode.h>
 
 namespace winpx
@@ -43,8 +44,16 @@ namespace winpx
         CString strVersion;
         m_stVersion.GetWindowText(strVersion);
         strVersion.Format(strVersion, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-        if (!strGitCommitHash.IsEmpty())
+        if (!strGitCommitHash.IsEmpty() && strGitCommitHash != _T("unknown"))
+        {
             strVersion += L" (" + strGitCommitHash.Left(8) + L")";
+        }
+
+        if (Environment::IsPackagedProcess())
+        {
+            strVersion += L" - Packaged";
+        }
+
         m_stVersion.SetWindowText(strVersion);
 
         m_stLicenses.SetWindowText(Unicode::FromUtf8(Resources::GetLicenses()).c_str());
