@@ -498,6 +498,7 @@ namespace winpx
             if (IsConnectionClose(response))
             {
                 DoTraceMessage(WppVerbose, "Upstream proxy closed the connection after 407, reconnecting.");
+                context.serverBuffer.clear();
                 server = co_await ConnectTo(host, port);
 
                 if (connectionBound)
