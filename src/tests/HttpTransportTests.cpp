@@ -201,7 +201,7 @@ namespace UnitTests
 
         EXPECT_TRUE(socket.is_open());
         EXPECT_TRUE(socket.remote_endpoint() == ipv4Acceptor.local_endpoint() ||
-            socket.remote_endpoint() == ipv6Acceptor.local_endpoint());
+                    socket.remote_endpoint() == ipv6Acceptor.local_endpoint());
     }
 
     TEST_F(HttpTransportTests, ConnectTo_LocalhostThrowsWhenBothFamiliesRefuse)

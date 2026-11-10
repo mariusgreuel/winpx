@@ -117,7 +117,6 @@ namespace winpx
         static bool HasConnectionOption(const std::vector<std::string_view>& connectionOptions, std::string_view name);
         static bool HasExpectContinue(const HttpMessage& message);
         static bool HasBasicCredentials(const ProxyConfiguration& configuration);
-        static bool IsConnectionLost(const asio::error_code& ec);
 
     private:
         const ProxyConfiguration& m_proxyConfiguration;

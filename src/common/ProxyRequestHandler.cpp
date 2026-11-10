@@ -85,8 +85,6 @@ namespace winpx
     {
         DoTraceMessage(WppVerbose, "%!FUNC!: [%u/%u]", client.local_endpoint().port(), client.remote_endpoint().port());
 
-        SetTcpNoDelay(client);
-
         m_proxyStatistics.activeConnections += 1;
         m_proxyStatistics.totalConnections += 1;
 
@@ -103,18 +101,25 @@ namespace winpx
                     asio::dynamic_buffer(context.clientBuffer, m_proxyConfiguration.httpConfiguration.maxHeadSize),
                     "\r\n\r\n"sv,
                     asio::as_tuple(asio::cancel_after(timeout, asio::use_awaitable)));
-                if (IsConnectionLost(ec) && !context.firstRequest && context.clientBuffer.empty())
+                if (ec == asio::error::eof)
                 {
-                    DoTraceMessage(WppVerbose, "Connection lost");
                     break;
+                }
+                else if (ec == asio::error::connection_reset ||
+                         ec == asio::error::connection_aborted ||
+                         ec == asio::error::operation_aborted ||
+                         ec == asio::error::timed_out)
+                {
+                    if (!context.firstRequest)
+                    {
+                        break;
+                    }
+
+                    throw HttpError(ec.message().c_str(), HttpStatusCode::RequestTimeout);
                 }
                 else if (ec == asio::error::not_found)
                 {
                     throw HttpError(ec.message().c_str(), HttpStatusCode::RequestHeaderFieldsTooLarge);
-                }
-                else if (ec == asio::error::operation_aborted || ec == asio::error::timed_out)
-                {
-                    throw HttpError(ec.message().c_str(), HttpStatusCode::RequestTimeout);
                 }
                 else if (ec)
                 {
@@ -131,14 +136,16 @@ namespace winpx
 
                 context.Reuse(++m_proxyStatistics.requests);
                 context.request = ParseRequestHead(context.clientBuffer, headSize);
-                context.firstRequest = false;
 
+                SetTcpNoDelay(client);
                 co_await HandleRequest(context);
 
                 if (!context.keepClientAlive)
                 {
                     break;
                 }
+
+                context.firstRequest = false;
             }
         }
         catch (const HttpError& e)
@@ -174,7 +181,11 @@ namespace winpx
             }
         }
 
-        LOG_INFO("{} Closing connection", context);
+        if (context.m_requestId > 0)
+        {
+            LOG_INFO("{} Closing connection", context);
+        }
+
         co_await DrainAndClose(client, context.clientBuffer);
 
         m_proxyStatistics.activeConnections -= 1;
@@ -1060,15 +1071,6 @@ namespace winpx
     bool ProxyRequestHandler::HasBasicCredentials(const ProxyConfiguration& configuration)
     {
         return !configuration.gatewayUsername.empty();
-    }
-
-    bool ProxyRequestHandler::IsConnectionLost(const asio::error_code& ec)
-    {
-        return ec == asio::error::eof ||
-               ec == asio::error::connection_reset ||
-               ec == asio::error::connection_aborted ||
-               ec == asio::error::operation_aborted ||
-               ec == asio::error::timed_out;
     }
 
     INCLUDE_IN_PDB(AuthenticationScheme);
