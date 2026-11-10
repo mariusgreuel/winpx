@@ -291,6 +291,13 @@
         <decimal id="ServerIdleTimeout" valueName="ServerIdleTimeout" minValue="0" maxValue="3600000" />
       </elements>
     </policy>
+    <policy name="TunnelTimeout" class="Both" displayName="$(string.TunnelTimeout)" explainText="$(string.TunnelTimeout_Help)" presentation="$(presentation.TunnelTimeout)" key="Software\Policies\Marius Greuel\WinPX">
+      <parentCategory ref="WinPX" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0" />
+      <elements>
+        <decimal id="TunnelTimeout" valueName="TunnelTimeout" minValue="0" maxValue="36000000" />
+      </elements>
+    </policy>
     <policy name="ReadTimeout" class="Both" displayName="$(string.ReadTimeout)" explainText="$(string.ReadTimeout_Help)" presentation="$(presentation.ReadTimeout)" key="Software\Policies\Marius Greuel\WinPX">
       <parentCategory ref="WinPX" />
       <supportedOn ref="windows:SUPPORTED_Windows_10_0" />

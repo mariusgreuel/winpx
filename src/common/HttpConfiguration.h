@@ -22,14 +22,15 @@ namespace winpx
         size_t maxDrainSize = 1 * MB;
         size_t maxIdleServerConnectionsPerHost = 8;
 
-        std::chrono::milliseconds resolveTimeout = std::chrono::seconds(5);
-        std::chrono::milliseconds connectTimeout = std::chrono::seconds(5);
+        std::chrono::milliseconds resolveTimeout = std::chrono::milliseconds(5000);
+        std::chrono::milliseconds connectTimeout = std::chrono::milliseconds(5000);
         std::chrono::milliseconds connectionAttemptDelay = std::chrono::milliseconds(250);
-        std::chrono::milliseconds keepAliveTimeout = std::chrono::seconds(30);
-        std::chrono::milliseconds serverIdleTimeout = std::chrono::seconds(30);
-        std::chrono::milliseconds readTimeout = std::chrono::seconds(120);
-        std::chrono::milliseconds writeTimeout = std::chrono::seconds(15);
-        std::chrono::milliseconds expectContinueTimeout = std::chrono::seconds(1);
-        std::chrono::milliseconds drainTimeout = std::chrono::seconds(2);
+        std::chrono::milliseconds keepAliveTimeout = std::chrono::milliseconds(30000);
+        std::chrono::milliseconds serverIdleTimeout = std::chrono::milliseconds(30000);
+        std::chrono::milliseconds tunnelTimeout = std::chrono::milliseconds(900000);
+        std::chrono::milliseconds readTimeout = std::chrono::milliseconds(120000);
+        std::chrono::milliseconds writeTimeout = std::chrono::milliseconds(15000);
+        std::chrono::milliseconds expectContinueTimeout = std::chrono::milliseconds(1000);
+        std::chrono::milliseconds drainTimeout = std::chrono::milliseconds(2000);
     };
 }

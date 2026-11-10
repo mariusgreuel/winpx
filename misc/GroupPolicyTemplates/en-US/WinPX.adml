@@ -282,6 +282,14 @@
 
         If you disable this policy or do not configure it, the default timeout duration will be used.
       </string>
+      <string id="TunnelTimeout">Tunnel Timeout</string>
+      <string id="TunnelTimeout_Help">
+        This policy setting allows you to specify the maximum timeout for an idle CONNECT tunnel.
+
+        If you enable this policy, the WinPX proxy server will use the specified timeout.
+
+        If you disable this policy or do not configure it, the default timeout duration will be used.
+      </string>
       <string id="ReadTimeout">Read Timeout</string>
       <string id="ReadTimeout_Help">
         This policy setting allows you to specify the timeout duration for reading data.
@@ -445,6 +453,10 @@
       <presentation id="ServerIdleTimeout">
         <text>Enter the timeout duration for keeping a HTTP connection in the connection pool in milliseconds.</text>
         <decimalTextBox refId="ServerIdleTimeout" defaultValue="30000" spin="true">Server Idle Timeout:</decimalTextBox>
+      </presentation>
+      <presentation id="TunnelTimeout">
+        <text>Enter the timeout duration for an idle CONNECT tunnel in milliseconds.</text>
+        <decimalTextBox refId="TunnelTimeout" defaultValue="900000" spin="true">Tunnel Timeout:</decimalTextBox>
       </presentation>
       <presentation id="ReadTimeout">
         <text>Enter the timeout duration for reading data in milliseconds.</text>

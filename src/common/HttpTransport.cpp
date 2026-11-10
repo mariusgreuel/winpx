@@ -589,7 +589,7 @@ namespace winpx
             {
                 size_t bytesRead = co_await source.async_read_some(
                     asio::buffer(buffer),
-                    asio::cancel_after(m_httpConfiguration.readTimeout, asio::use_awaitable));
+                    asio::cancel_after(m_httpConfiguration.tunnelTimeout, asio::use_awaitable));
                 co_await asio::async_write(
                     destination,
                     asio::buffer(buffer, bytesRead),
