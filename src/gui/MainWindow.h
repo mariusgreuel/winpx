@@ -36,7 +36,6 @@ namespace winpx
             MSG_WM_CONTEXTMENU(OnContextMenu)
             MESSAGE_HANDLER(m_nWmNotifyIcon, OnNotifyIcon)
             MESSAGE_HANDLER(m_nWmOtherInstance, OnOtherInstance)
-            MESSAGE_HANDLER(m_nWmRequestShutdown, OnRequestShutdown)
             MESSAGE_HANDLER(m_nWmProxyChange, OnProxyChange)
             COMMAND_ID_HANDLER_EX(ID_PROXY_START, OnProxyStart)
             COMMAND_ID_HANDLER_EX(ID_PROXY_STOP, OnProxyStop)
@@ -55,7 +54,6 @@ namespace winpx
         void OnContextMenu(HWND hWnd, CPoint point);
         LRESULT OnNotifyIcon(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
         LRESULT OnOtherInstance(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
-        LRESULT OnRequestShutdown(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
         LRESULT OnProxyChange(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
         void OnProxyStart(UINT uNotifyCode, int nID, HWND hWndCtl);
         void OnProxyStop(UINT uNotifyCode, int nID, HWND hWndCtl);
@@ -80,12 +78,12 @@ namespace winpx
         void RegisterProxyChangeNotification();
         void UnregisterProxyChangeNotification();
         static void WINAPI ProxyChangeCallback(ULONGLONG ullFlags, PVOID pvContext);
+        static DWORD CommandToCode(const std::string& command);
 
     private:
         static const UINT m_nWmNotifyIcon = WM_APP;
         static const UINT m_nWmOtherInstance = WM_APP + 1;
-        static const UINT m_nWmRequestShutdown = WM_APP + 2;
-        static const UINT m_nWmProxyChange = WM_APP + 3;
+        static const UINT m_nWmProxyChange = WM_APP + 2;
         win32::SingleInstance m_singleInstance;
         NotifyIcon m_notifyIcon;
         Options m_options;

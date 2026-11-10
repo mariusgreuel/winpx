@@ -9,8 +9,7 @@ namespace winpx
 {
     struct Options
     {
+        std::string post;
         bool configureFirewall = false;
-        bool shutdownOldInstance = false;
-        bool showOptionsDialog = false;
     };
 }

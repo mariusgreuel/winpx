@@ -63,18 +63,22 @@ namespace winpx
             SetLastError(ERROR_CANCELLED);
             return nullptr;
         }
-        else if (m_options.shutdownOldInstance)
+
+        if (!m_singleInstance.IsFirst())
         {
-            PostMessageToExistingInstance(m_nWmRequestShutdown);
-            SetLastError(ERROR_CANCELLED);
-            return nullptr;
-        }
-        else if (!m_singleInstance.IsFirst())
-        {
-            DoTraceMessage(WppVerbose, "Single instance only.");
-            PostMessageToExistingInstance(m_nWmOtherInstance);
-            SetLastError(ERROR_SINGLE_INSTANCE_APP);
-            return nullptr;
+            if (!m_options.post.empty())
+            {
+                PostMessageToExistingInstance(WM_COMMAND, CommandToCode(m_options.post));
+                SetLastError(ERROR_SUCCESS);
+                return nullptr;
+            }
+            else
+            {
+                DoTraceMessage(WppVerbose, "Single instance only.");
+                PostMessageToExistingInstance(m_nWmOtherInstance);
+                SetLastError(ERROR_SINGLE_INSTANCE_APP);
+                return nullptr;
+            }
         }
         else if (m_proxyConfiguration.firstRun)
         {
@@ -128,9 +132,9 @@ namespace winpx
             PostMessage(WM_COMMAND, ID_PROXY_START);
         }
 
-        if (m_options.showOptionsDialog)
+        if (!m_options.post.empty())
         {
-            PostMessage(WM_COMMAND, ID_PROXY_OPTIONS);
+            PostMessage(WM_COMMAND, CommandToCode(m_options.post));
         }
 
         m_initialized = true;
@@ -209,15 +213,6 @@ namespace winpx
         DoTraceMessage(WppGui, "%!FUNC!");
 
         m_notifyIcon.ShowInfo(_T("WinPX is already running"), _T("Click on the WinPX system tray icon to access WinPX."), NIIF_INFO);
-
-        return 0;
-    }
-
-    LRESULT MainWindow::OnRequestShutdown(UINT /* uMsg */, WPARAM /* wParam */, LPARAM /* lParam */, BOOL& /* bHandled */)
-    {
-        DoTraceMessage(WppGui, "%!FUNC!");
-
-        DestroyWindow();
 
         return 0;
     }
@@ -412,9 +407,8 @@ namespace winpx
         try
         {
             ProxyCommandLineParser parser(m_proxyConfiguration);
+            parser.AddOption("post"sv, m_options.post);
             parser.AddOption("configure-firewall"sv, m_options.configureFirewall);
-            parser.AddOption("shutdown-instance"sv, m_options.shutdownOldInstance);
-            parser.AddOption("show-options"sv, m_options.showOptionsDialog);
             parser.Parse();
         }
         catch (const std::exception& e)
@@ -508,6 +502,8 @@ namespace winpx
 
     void MainWindow::PostMessageToExistingInstance(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
+        DoTraceMessage(WppVerbose, "%!FUNC!: uMsg=%u, wParam=%llu, lParam=%llu", uMsg, wParam, lParam);
+
         CWindow hWnd = FindWindow(GetWndClassInfo().m_wc.lpszClassName, nullptr);
         if (hWnd)
         {
@@ -560,5 +556,33 @@ namespace winpx
 
         MainWindow* pThis = static_cast<MainWindow*>(pvContext);
         pThis->PostMessage(pThis->m_nWmProxyChange);
+    }
+
+    DWORD MainWindow::CommandToCode(const std::string& command)
+    {
+        if (command == "start-proxy")
+        {
+            return ID_PROXY_START;
+        }
+        else if (command == "stop-proxy")
+        {
+            return ID_PROXY_STOP;
+        }
+        else if (command == "show-log")
+        {
+            return ID_PROXY_LOG;
+        }
+        else if (command == "show-options")
+        {
+            return ID_PROXY_OPTIONS;
+        }
+        else if (command == "quit" || command == "exit")
+        {
+            return ID_PROXY_EXIT;
+        }
+        else
+        {
+            return 0;
+        }
     }
 }

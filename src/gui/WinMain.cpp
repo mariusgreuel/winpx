@@ -42,12 +42,12 @@ namespace winpx
             if (hWnd == nullptr)
             {
                 DWORD dwError = GetLastError();
-                if (dwError != ERROR_CANCELLED && dwError != ERROR_SINGLE_INSTANCE_APP)
+                if (dwError != ERROR_SUCCESS && dwError != ERROR_CANCELLED && dwError != ERROR_SINGLE_INSTANCE_APP)
                 {
                     DoTraceMessage(WppError, "MainWindow::Create failed: %!WINERROR!", dwError);
                 }
 
-                return 1;
+                return dwError == ERROR_SUCCESS ? 0 : 1;
             }
 
             RunMessageLoop();
