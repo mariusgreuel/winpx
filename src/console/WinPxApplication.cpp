@@ -210,8 +210,7 @@ namespace winpx
 
     void WinPxApplication::PrintBanner()
     {
-        std::string gitCommitHash = GIT_COMMIT_HASH;
-        std::cout << "WinPX V" << VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_PATCH << " (" << gitCommitHash.substr(0, 8) << ")" << std::endl;
+        std::cout << GetProgramVersion() << std::endl;
         std::cout << "Copyright (c) 2021 Marius Greuel. All rights reserved." << std::endl;
     }
 

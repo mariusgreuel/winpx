@@ -98,7 +98,7 @@ namespace winpx
 </head>
 <body>
     <header>
-        <h1>WinPX v{}.{}.{}</h1>
+        <h1>{}</h1>
     </header>
     <main>
         <h2>Status</h2>
@@ -114,7 +114,7 @@ namespace winpx
 </body>
 </html>
 )",
-            VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH,
+            GetProgramVersion(),
             m_proxyStatistics.requests.load(),
             m_proxyStatistics.activeConnections.load(),
             m_proxyStatistics.totalConnections.load(),

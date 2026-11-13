@@ -151,11 +151,7 @@ namespace winpx
             static_cast<int>(m_proxyConfiguration.proxyMode),
             static_cast<int>(m_proxyConfiguration.networkMode));
 
-        LOG_INFO("Starting WinPX Proxy v{}.{}.{} ({})",
-            VERSION_MAJOR,
-            VERSION_MINOR,
-            VERSION_PATCH,
-            std::string_view(GIT_COMMIT_HASH).substr(0, 8));
+        LOG_INFO("Starting {}", GetProgramVersion());
 
         m_state = ProxyState::Starting;
 
