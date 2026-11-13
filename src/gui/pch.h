@@ -6,6 +6,7 @@
 #pragma once
 #include <common/pch.h>
 
+#define _RICHEDIT_VER 0x0400
 #define _WTL_TASKDIALOG_DIRECT
 
 #include <atltypes.h>

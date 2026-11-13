@@ -249,13 +249,13 @@ namespace winpx
     {
         DoTraceMessage(WppGui, "%!FUNC!");
 
-        if (!ConsoleLogger::IsEnabled())
+        if (m_logWindow && m_logWindow->IsWindow())
         {
-            ShowLogWindow();
+            HideLogWindow();
         }
         else
         {
-            HideLogWindow();
+            ShowLogWindow();
         }
 
         UpdateUserInterface();
@@ -448,55 +448,24 @@ namespace winpx
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
 
-        if (HWND hConsole = GetConsoleWindow())
-        {
-            ::ShowWindow(hConsole, SW_SHOW);
+        HideLogWindow();
+        StopProxy();
 
-            ConsoleLogger::Start();
-        }
-        else
-        {
-            if (!AllocConsole())
-            {
-                DWORD dwError = GetLastError();
-                DoTraceMessage(WppError, "AllocConsole failed: %!WINERROR!", dwError);
-                return;
-            }
+        m_logWindow = std::make_unique<LogWindow>();
+        m_logWindow->Create(m_hWnd, rcDefault, _T("WinPX Proxy Server - Log"), WS_OVERLAPPEDWINDOW, WS_EX_APPWINDOW);
+        m_logWindow->ShowWindow(SW_SHOW);
 
-            SetConsoleTitle(_T("WinPX Proxy Log"));
-            SetConsoleCP(CP_UTF8);
-            SetConsoleOutputCP(CP_UTF8);
-            SetConsoleCtrlHandler([](DWORD ctrlType) -> BOOL {
-                DoTraceMessage(WppVerbose, "%!FUNC!: ctrlType=%u", ctrlType);
-                return ctrlType == CTRL_C_EVENT ? TRUE : FALSE;
-            },
-                TRUE);
-
-            if (HMENU hMenu = ::GetSystemMenu(GetConsoleWindow(), FALSE))
-            {
-                ::DeleteMenu(hMenu, SC_CLOSE, MF_BYCOMMAND);
-            }
-
-            FILE* dummy;
-            freopen_s(&dummy, "CONOUT$", "w", stdout);
-
-            StopProxy();
-
-            ConsoleLogger::Start();
-
-            StartProxy();
-        }
+        StartProxy();
     }
 
     void MainWindow::HideLogWindow()
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
 
-        ConsoleLogger::Stop();
-
-        if (HWND hConsole = GetConsoleWindow())
+        if (m_logWindow && m_logWindow->IsWindow())
         {
-            ::ShowWindow(hConsole, SW_HIDE);
+            m_logWindow->DestroyWindow();
+            m_logWindow.reset();
         }
     }
 

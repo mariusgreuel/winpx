@@ -55,6 +55,11 @@ namespace win32
     {
         DoTraceMessage(WppVerbose, "%!FUNC!");
 
+        if (!m_enabled)
+        {
+            return;
+        }
+
         m_enabled = false;
 
         if (m_thread.joinable())

@@ -4,6 +4,7 @@
 //
 
 #pragma once
+#include "LogWindow.h"
 #include "NotifyIcon.h"
 #include "Options.h"
 #include "resource.h"
@@ -89,6 +90,7 @@ namespace winpx
         Options m_options;
         ProxyConfiguration m_proxyConfiguration;
         std::shared_ptr<Proxy> m_proxy;
+        std::unique_ptr<LogWindow> m_logWindow;
         bool m_initialized = false;
         WINHTTP_PROXY_CHANGE_REGISTRATION_HANDLE m_hProxyChangeRegistration = nullptr;
     };

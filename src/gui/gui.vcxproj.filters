@@ -50,6 +50,9 @@
     <ClCompile Include="Firewall.cpp">
       <Filter>1 Main</Filter>
     </ClCompile>
+    <ClCompile Include="LogWindow.cpp">
+      <Filter>2 Gui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DialogOptions.h">
@@ -94,6 +97,9 @@
     </ClInclude>
     <ClInclude Include="Options.h">
       <Filter>1 Main</Filter>
+    </ClInclude>
+    <ClInclude Include="LogWindow.h">
+      <Filter>2 Gui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -16,12 +16,18 @@ namespace win32
 
         static bool GetValue(std::string_view valueName, bool defaultValue);
         static HRESULT SetValue(std::string_view valueName, bool value);
+        static HRESULT QueryValue(std::string_view valueName, bool& value);
 
         static int GetValue(std::string_view valueName, int defaultValue);
         static HRESULT SetValue(std::string_view valueName, int value);
+        static HRESULT QueryValue(std::string_view valueName, int& value);
 
         static std::string GetValue(std::string_view valueName, std::string_view defaultValue);
         static HRESULT SetValue(std::string_view valueName, std::string_view value);
+        static HRESULT QueryValue(std::string_view valueName, std::string& value);
+
+        static HRESULT SetValue(std::string_view valueName, const void* data, size_t size);
+        static HRESULT QueryValue(std::string_view valueName, void* data, size_t size);
 
         template<typename T, typename = std::enable_if_t<std::is_integral<T>::value || std::is_enum<T>::value>>
         static T GetValue(std::string_view valueName, T defaultValue)
@@ -37,9 +43,6 @@ namespace win32
 
     private:
         static HRESULT OpenKey(CRegKey& key, bool bCreate);
-        static HRESULT QueryValue(std::string_view valueName, bool& value);
-        static HRESULT QueryValue(std::string_view valueName, int& value);
-        static HRESULT QueryValue(std::string_view valueName, std::string& value);
 
     private:
         static std::wstring m_rootKey;

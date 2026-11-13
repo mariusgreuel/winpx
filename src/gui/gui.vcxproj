@@ -244,6 +244,7 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="LogWindow.cpp" />
     <ClCompile Include="DialogOptionsDiagnostics.cpp" />
     <ClCompile Include="DialogOptionsSecurity.cpp" />
     <ClCompile Include="DialogWelcome.cpp" />
@@ -266,6 +267,7 @@
     <ClCompile Include="MainWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="LogWindow.h" />
     <ClInclude Include="Options.h" />
     <ClInclude Include="DialogOptionsDiagnostics.h" />
     <ClInclude Include="DialogOptionsSecurity.h" />

@@ -39,6 +39,23 @@ namespace win32
         return S_OK;
     }
 
+    HRESULT Registry::QueryValue(std::string_view valueName, bool& value)
+    {
+        CRegKey key;
+        HRESULT hr = OpenKey(key, false);
+        if (FAILED(hr))
+            return hr;
+
+        DWORD dwValue = 0;
+        LONG nError = key.QueryDWORDValue(Unicode::FromUtf8(valueName).c_str(), dwValue);
+        if (nError != ERROR_SUCCESS)
+            return AtlHresultFromWin32(nError);
+
+        value = dwValue != 0;
+
+        return S_OK;
+    }
+
     int Registry::GetValue(std::string_view valueName, int defaultValue)
     {
         int value = defaultValue;
@@ -60,6 +77,23 @@ namespace win32
         return S_OK;
     }
 
+    HRESULT Registry::QueryValue(std::string_view valueName, int& value)
+    {
+        CRegKey key;
+        HRESULT hr = OpenKey(key, false);
+        if (FAILED(hr))
+            return hr;
+
+        DWORD dwValue = 0;
+        LONG nError = key.QueryDWORDValue(Unicode::FromUtf8(valueName).c_str(), dwValue);
+        if (nError != ERROR_SUCCESS)
+            return AtlHresultFromWin32(nError);
+
+        value = dwValue;
+
+        return S_OK;
+    }
+
     std::string Registry::GetValue(std::string_view valueName, std::string_view defaultValue)
     {
         std::string value(defaultValue);
@@ -77,40 +111,6 @@ namespace win32
         LONG nError = key.SetStringValue(Unicode::FromUtf8(valueName).c_str(), Unicode::FromUtf8(value).c_str());
         if (nError != ERROR_SUCCESS)
             return AtlHresultFromWin32(nError);
-
-        return S_OK;
-    }
-
-    HRESULT Registry::QueryValue(std::string_view valueName, bool& value)
-    {
-        CRegKey key;
-        HRESULT hr = OpenKey(key, false);
-        if (FAILED(hr))
-            return hr;
-
-        DWORD dwValue = 0;
-        LONG nError = key.QueryDWORDValue(Unicode::FromUtf8(valueName).c_str(), dwValue);
-        if (nError != ERROR_SUCCESS)
-            return AtlHresultFromWin32(nError);
-
-        value = dwValue != 0;
-
-        return S_OK;
-    }
-
-    HRESULT Registry::QueryValue(std::string_view valueName, int& value)
-    {
-        CRegKey key;
-        HRESULT hr = OpenKey(key, false);
-        if (FAILED(hr))
-            return hr;
-
-        DWORD dwValue = 0;
-        LONG nError = key.QueryDWORDValue(Unicode::FromUtf8(valueName).c_str(), dwValue);
-        if (nError != ERROR_SUCCESS)
-            return AtlHresultFromWin32(nError);
-
-        value = dwValue;
 
         return S_OK;
     }
@@ -138,6 +138,40 @@ namespace win32
             valueW.pop_back();
 
         value = Unicode::ToUtf8(valueW);
+        return S_OK;
+    }
+
+    HRESULT Registry::SetValue(std::string_view valueName, const void* data, size_t size)
+    {
+        CRegKey key;
+        HRESULT hr = OpenKey(key, true);
+        if (FAILED(hr))
+            return hr;
+
+        LONG nError = key.SetBinaryValue(Unicode::FromUtf8(valueName).c_str(), data, static_cast<ULONG>(size));
+        if (nError != ERROR_SUCCESS)
+            return AtlHresultFromWin32(nError);
+
+        return S_OK;
+    }
+
+    HRESULT Registry::QueryValue(std::string_view valueName, void* data, size_t size)
+    {
+        CRegKey key;
+        HRESULT hr = OpenKey(key, false);
+        if (FAILED(hr))
+            return hr;
+
+        auto valueNameW = Unicode::FromUtf8(valueName);
+
+        ULONG nBytes = static_cast<ULONG>(size);
+        LONG nError = key.QueryBinaryValue(valueNameW.c_str(), data, &nBytes);
+        if (nError != ERROR_SUCCESS)
+            return AtlHresultFromWin32(nError);
+
+        if (nBytes != static_cast<ULONG>(size))
+            return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+
         return S_OK;
     }
 
