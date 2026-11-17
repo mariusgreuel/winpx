@@ -5,8 +5,8 @@
 
 #pragma once
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 4
-#define VERSION_PATCH 70
+#define VERSION_MINOR 5
+#define VERSION_PATCH 74
 #define VERSION_QFE 0
 
 #ifndef RC_INVOKED
